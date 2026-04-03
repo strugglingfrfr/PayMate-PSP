@@ -1,0 +1,3 @@
+name: paymate-pool-orchestrator
+description: CRE workflow for PayMate PSP Pre-Funding Pool
+entrypoint: main.ts

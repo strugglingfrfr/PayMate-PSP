@@ -1,0 +1,10 @@
+# CRE Project Configuration
+# See https://docs.chain.link/cre for reference
+
+rpcs:
+  arc-testnet:
+    url: "${ARC_TESTNET_RPC}"
+    chainId: 5042002
+  base-sepolia:
+    url: "${BASE_SEPOLIA_RPC}"
+    chainId: 84532

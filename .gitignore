@@ -1,0 +1,36 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build
+artifacts/
+cache/
+typechain-types/
+out/
+.next/
+build/
+
+# Environment
+.env
+.env.local
+.env.*.local
+secrets.yaml
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Coverage
+coverage/
+coverage.json
+
+# Hardhat
+cache/
+artifacts/
+
+# CRE
+*.wasm

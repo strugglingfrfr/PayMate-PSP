@@ -1,0 +1,9 @@
+{
+  "schedule": "0 0 */7 * *",
+  "poolAddress": "",
+  "yieldReserveAddress": "",
+  "uniswapApiBaseUrl": "https://trade-api.gateway.uniswap.org/v1",
+  "arcChainSelector": "arc-testnet",
+  "baseChainSelector": "base-sepolia",
+  "slippageBps": 50
+}
