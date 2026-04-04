@@ -18,6 +18,49 @@ const steps = [
   { id: 7, title: "Review", icon: "✓", heading: "Review & submit", desc: "Verify your details before submitting" },
 ];
 
+// Defined outside component to prevent re-render focus loss
+function FieldGroup({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="rounded-xl border border-border/50 bg-card/50 p-6">
+      <div className="text-xs font-medium uppercase tracking-widest text-blue-400 mb-5">{title}</div>
+      <div className="space-y-5">{children}</div>
+    </div>
+  );
+}
+
+function Field({ label, placeholder, value, onChange, type = "text" }: any) {
+  return (
+    <div className="space-y-2">
+      <label className="text-xs text-muted-foreground">{label}</label>
+      <Input type={type} value={value} onChange={(e: any) => onChange(type === "number" ? Number(e.target.value) : e.target.value)}
+        placeholder={placeholder} className="bg-background/50 border-border" />
+    </div>
+  );
+}
+
+function TagInputField({ label, placeholder, tags, input, setInput, onAdd, onRemove }: any) {
+  return (
+    <div className="space-y-2">
+      <label className="text-xs uppercase tracking-widest text-muted-foreground">{label}</label>
+      <div className="flex gap-2">
+        <Input value={input} onChange={(e: any) => setInput(e.target.value)} placeholder={placeholder}
+          onKeyDown={(e: any) => { if (e.key === "Enter") { e.preventDefault(); onAdd(); } }}
+          className="bg-background/50 border-border" />
+        <Button type="button" size="sm" variant="outline" onClick={onAdd} className="text-blue-400 border-blue-400/30 text-xs shrink-0">+ Add</Button>
+      </div>
+      {tags.length > 0 && (
+        <div className="flex flex-wrap gap-2 mt-2">
+          {tags.map((t: string, i: number) => (
+            <span key={i} className="inline-flex items-center gap-1.5 rounded-full bg-blue-400/10 border border-blue-400/20 px-3 py-1 text-xs text-blue-400">
+              {t}<button onClick={() => onRemove(i)} className="hover:text-white ml-0.5">×</button>
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function PSPOnboardPage() {
   const router = useRouter();
   const [step, setStep] = useState(1);
@@ -69,47 +112,7 @@ export default function PSPOnboardPage() {
   const currentStep = steps[step - 1];
   const progressPct = Math.round((step / 7) * 100);
 
-  function TagInput({ label, placeholder, tags, input, setInput, field }: any) {
-    return (
-      <div className="space-y-2">
-        <label className="text-xs uppercase tracking-widest text-muted-foreground">{label}</label>
-        <div className="flex gap-2">
-          <Input value={input} onChange={(e: any) => setInput(e.target.value)} placeholder={placeholder}
-            onKeyDown={(e: any) => { if (e.key === "Enter") { e.preventDefault(); addTag(field, input, setInput); } }}
-            className="bg-background/50 border-border" />
-          <Button type="button" size="sm" variant="outline" onClick={() => addTag(field, input, setInput)} className="text-blue-400 border-blue-400/30 text-xs shrink-0">+ Add</Button>
-        </div>
-        {tags.length > 0 && (
-          <div className="flex flex-wrap gap-2 mt-2">
-            {tags.map((t: string, i: number) => (
-              <span key={i} className="inline-flex items-center gap-1.5 rounded-full bg-blue-400/10 border border-blue-400/20 px-3 py-1 text-xs text-blue-400">
-                {t}<button onClick={() => removeTag(field, i)} className="hover:text-white ml-0.5">×</button>
-              </span>
-            ))}
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  function FieldGroup({ title, children }: { title: string; children: React.ReactNode }) {
-    return (
-      <div className="rounded-xl border border-border/50 bg-card/50 p-6">
-        <div className="text-xs font-medium uppercase tracking-widest text-blue-400 mb-5">{title}</div>
-        <div className="space-y-5">{children}</div>
-      </div>
-    );
-  }
-
-  function Field({ label, placeholder, value, onChange, type = "text", half = false }: any) {
-    return (
-      <div className={`space-y-2 ${half ? "" : ""}`}>
-        <label className="text-xs text-muted-foreground">{label}</label>
-        <Input type={type} value={value} onChange={(e: any) => onChange(type === "number" ? Number(e.target.value) : e.target.value)}
-          placeholder={placeholder} className="bg-background/50 border-border" />
-      </div>
-    );
-  }
+  // Components are defined outside — see top of file
 
   return (
     <div className="min-h-screen bg-background">
@@ -221,10 +224,10 @@ export default function PSPOnboardPage() {
             {step === 3 && <>
               <FieldGroup title="Volume & Corridors">
                 <Field label="Monthly Transaction Volume (USD)" placeholder="50000000" value={form.monthlyTransactionVolume} onChange={(v: any) => set("monthlyTransactionVolume", v)} type="number" />
-                <TagInput label="Primary Corridors" placeholder="e.g. UAE-India" tags={form.primaryCorridors} input={corridorInput} setInput={setCorridorInput} field="primaryCorridors" />
+                <TagInputField label="Primary Corridors" placeholder="e.g. UAE-India" tags={form.primaryCorridors} input={corridorInput} setInput={setCorridorInput} onAdd={() => addTag("primaryCorridors", corridorInput, setCorridorInput)} onRemove={(i: number) => removeTag("primaryCorridors", i)} />
               </FieldGroup>
               <FieldGroup title="Settlement">
-                <TagInput label="Settlement Partners" placeholder="e.g. DBS Bank" tags={form.settlementPartners} input={partnerInput} setInput={setPartnerInput} field="settlementPartners" />
+                <TagInputField label="Settlement Partners" placeholder="e.g. DBS Bank" tags={form.settlementPartners} input={partnerInput} setInput={setPartnerInput} onAdd={() => addTag("settlementPartners", partnerInput, setPartnerInput)} onRemove={(i: number) => removeTag("settlementPartners", i)} />
                 <div className="space-y-2">
                   <label className="text-xs text-muted-foreground">Settlement Cycle</label>
                   <div className="flex gap-2">
@@ -253,7 +256,7 @@ export default function PSPOnboardPage() {
                 </div>
               </FieldGroup>
               <FieldGroup title="Banking">
-                <TagInput label="Bank Relationships" placeholder="e.g. DBS" tags={form.bankRelationships} input={bankInput} setInput={setBankInput} field="bankRelationships" />
+                <TagInputField label="Bank Relationships" placeholder="e.g. DBS" tags={form.bankRelationships} input={bankInput} setInput={setBankInput} onAdd={() => addTag("bankRelationships", bankInput, setBankInput)} onRemove={(i: number) => removeTag("bankRelationships", i)} />
               </FieldGroup>
             </>}
 
