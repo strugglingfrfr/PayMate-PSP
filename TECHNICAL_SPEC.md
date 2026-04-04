@@ -214,26 +214,119 @@ Circle Gateway provides instant cross-chain USDC transfers (under 500ms) via Gat
 
 For the hackathon, if Gateway integration adds too much complexity, the bridge step can be simulated within the CRE workflow. The core smart contract logic and Uniswap API integration remain real and demonstrable.
 
-## 9. Nanopayments Agent Layer (Optional)
+## 9. Nanopayments Agent Layer
 
 ### 9.1 Purpose
 
-An AI agent monitors the pool and provides value-added services to PSPs:
-- Sends repayment reminders before deadlines
-- Fetches external credit risk signals from paid APIs
-- Monitors pool utilization and alerts the admin
+Autonomous AI agents provide value-added intelligence to the pool by consuming paid data services via Circle Nanopayments — gas-free micropayments on Arc using the x402 protocol. The agents pay for each API call per-use, demonstrating agent-to-agent commerce without human intervention.
 
-The agent charges for these services via Circle Nanopayments — gas-free micropayments on Arc using the x402 protocol.
+Three agents operate within the system:
 
-### 9.2 How It Works
+**Credit Risk Agent** — Before a PSP drawdown is approved, this agent autonomously queries external credit and risk data to produce a risk assessment. It pays per query via nanopayment.
 
-The agent deposits USDC into a GatewayWallet contract on Arc (one-time on-chain transaction). When the agent needs to access a paid data service (e.g., a credit scoring API), it signs an EIP-3009 TransferWithAuthorization message off-chain (zero gas). The data service verifies the signature via the x402 facilitator and serves the response. Circle batches all pending authorizations into a single on-chain settlement periodically.
+**Pool Monitoring Agent** — Continuously monitors pool health by paying for market and liquidity data feeds. Alerts admin if utilization or reserve levels cross thresholds.
 
-### 9.3 Integration
+**Repayment Reminder Agent** — When PSP repayment deadlines approach, this agent pays for notification delivery and fetches the PSP's latest settlement status from external data services.
 
-The agent API endpoints use the @x402/express middleware, which automatically handles 402 Payment Required responses. The agent client uses @x402/fetch to sign and attach payments to requests.
+### 9.2 Architecture
 
-The agent does not have access to pool funds. It operates with its own GatewayWallet balance. It cannot call any pool contract functions that move capital. It can only read pool state (view functions) and trigger notification flows.
+The agent layer consists of two components:
+
+**Data Services (Sell Side)** — An Express server with x402-protected endpoints that simulate real-world paid APIs. Each endpoint requires a nanopayment before returning data. Built with `@circle-fin/x402-batching/server` and the `createGatewayMiddleware`.
+
+| Endpoint | Returns | Price | Simulates |
+|---|---|---|---|
+| /api/agent/credit-score | PSP risk score (0-100), risk level, factors | $0.01 | Credit bureau API (e.g. Dun & Bradstreet) |
+| /api/agent/compliance-check | KYB/sanctions screening result (pass/fail/review) | $0.005 | Compliance screening service (e.g. ComplyAdvantage) |
+| /api/agent/market-data | Pool utilization stats, USDC liquidity depth, rates | $0.002 | Market data feed (e.g. DeFi Llama) |
+
+**Agent Client (Buy Side)** — A service that uses `@circle-fin/x402-batching/client` GatewayClient to autonomously call the data service endpoints, paying via nanopayments. The agent is triggered by the backend during drawdown approval flows and on scheduled monitoring cycles.
+
+### 9.3 How It Works
+
+**Setup (one-time):**
+1. Fund agent wallet with testnet USDC from Circle Faucet (https://faucet.circle.com, select Arc Testnet).
+2. Agent calls `client.deposit("10")` to move USDC into the GatewayWallet contract on Arc. This is the only on-chain transaction — all subsequent payments are gas-free.
+
+**Payment flow (per request):**
+1. Agent calls `client.pay("https://data-service/api/agent/credit-score")`.
+2. Server responds with HTTP 402 Payment Required, declaring price and payment terms.
+3. GatewayClient automatically signs an EIP-3009 TransferWithAuthorization message off-chain (zero gas).
+4. Client retries request with signed payment in the `PAYMENT-SIGNATURE` header.
+5. Server verifies the signature via the Gateway BatchFacilitatorClient, confirms payment, and returns data.
+6. Circle Gateway aggregates all pending authorizations and settles net positions in bulk on-chain periodically.
+
+### 9.4 Integration with Backend
+
+The agent is wired into the backend's drawdown approval flow:
+
+1. PSP requests drawdown via backend API.
+2. Backend validates basic checks (amount, limit, approval status).
+3. Backend triggers Credit Risk Agent → agent pays $0.01 → receives risk score.
+4. If risk score is below threshold, drawdown is flagged for admin review.
+5. If risk score passes, backend proceeds to trigger on-chain drawdown.
+
+The Pool Monitoring Agent runs on a scheduled interval (e.g. every hour), paying for market data and comparing against pool state. If anomalies are detected, it logs an alert in the admin dashboard.
+
+The Repayment Reminder Agent is triggered when a PSP's drawdown approaches its repayment window. It pays for the PSP's latest settlement status and sends a notification via the backend.
+
+### 9.5 Packages
+
+```
+@circle-fin/x402-batching    — GatewayClient (buy side) + createGatewayMiddleware (sell side)
+@x402/core                   — x402 protocol types and utilities
+@x402/evm                    — EVM-specific payment verification
+viem                         — Wallet and chain interactions
+```
+
+### 9.6 Security Constraints
+
+The agents do not have access to pool funds. Each agent operates with its own GatewayWallet balance. Agents cannot call any pool contract functions that move capital. They can only read pool state (view functions) and return data to the backend. The backend makes all decisions — agents provide paid intelligence only.
+
+### 9.7 Sell Side Server Example
+
+```typescript
+import express from "express";
+import { createGatewayMiddleware } from "@circle-fin/x402-batching/server";
+
+const app = express();
+const gateway = createGatewayMiddleware({
+  sellerAddress: process.env.SELLER_WALLET_ADDRESS,
+  networks: ["eip155:5042002"], // Arc Testnet only
+});
+
+app.get("/api/agent/credit-score", gateway.require("$0.01"), (req, res) => {
+  const { payer } = req.payment!;
+  res.json({ payer, score: 82, risk: "low", factors: ["on-time history", "volume"] });
+});
+
+app.get("/api/agent/compliance-check", gateway.require("$0.005"), (req, res) => {
+  const { payer } = req.payment!;
+  res.json({ payer, status: "pass", sanctions: false, pep: false });
+});
+
+app.get("/api/agent/market-data", gateway.require("$0.002"), (req, res) => {
+  res.json({ utilization: 0.65, availableLiquidity: "35000", usdcDepth: "1200000" });
+});
+```
+
+### 9.8 Buy Side Agent Example
+
+```typescript
+import { GatewayClient } from "@circle-fin/x402-batching/client";
+
+const client = new GatewayClient({
+  chain: "arcTestnet",
+  privateKey: process.env.AGENT_PRIVATE_KEY as `0x${string}`,
+});
+
+// One-time: deposit USDC into GatewayWallet
+await client.deposit("10");
+
+// Per-use: pay for credit score
+const { data } = await client.pay("https://data-service/api/agent/credit-score");
+console.log(data); // { score: 82, risk: "low", ... }
+```
 
 ## 10. Backend Application Layer
 
@@ -447,6 +540,14 @@ PayMate-PSP/
         wallet.ts
     package.json
     tsconfig.json
+  agent/
+    src/
+      dataService.ts
+      creditRiskAgent.ts
+      poolMonitorAgent.ts
+      repaymentReminderAgent.ts
+    package.json
+    tsconfig.json
   cre-workflow/
     project.yaml
     secrets.yaml
@@ -489,6 +590,8 @@ PayMate-PSP/
 **Chainlink — Best Workflow with CRE ($4K).** The CRE workflow integrates Arc (blockchain) with the Uniswap Trading API (external API) and automates yield distribution, repayment processing, and liquidity sourcing. It can be simulated via the CRE CLI and deployed to the live CRE network.
 
 **Uniswap — Best API Integration ($10K pool).** The CRE workflow calls the Uniswap Trading API with a valid API key for swap quoting, route optimization, and transaction building. Real on-chain swap execution produces verifiable transaction IDs.
+
+**Arc — Best Agentic Economy with Nanopayments ($6K).** Autonomous AI agents (Credit Risk, Pool Monitoring, Repayment Reminder) transact with paid data services via Circle Nanopayments on Arc. Each API call is paid per-use with gas-free USDC micropayments using the x402 protocol. Agents operate without human intervention — the backend triggers them during drawdown approval and on scheduled monitoring cycles. The payment flow is real: EIP-3009 signed authorizations, Gateway batch settlement on-chain, verifiable on Arc testnet.
 
 ## 16. Security Constraints (Non-Negotiable)
 
