@@ -122,7 +122,7 @@ export default function LPDashboardPage() {
       <div className="sticky top-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-md">
         <div className="mx-auto max-w-6xl flex items-center justify-between px-6 py-4">
           <div className="flex items-center gap-3">
-            <Link href="/" className="text-lg font-semibold text-foreground">PayMate</Link>
+            <Link href="/" className="text-lg font-semibold tracking-tight"><span className="text-foreground">Pay</span><span className="text-blue-400">Mate</span></Link>
             <span className="rounded-full bg-green-400/10 border border-green-400/20 px-3 py-0.5 text-xs text-green-400 font-medium">Investor</span>
           </div>
           <div className="flex items-center gap-4">

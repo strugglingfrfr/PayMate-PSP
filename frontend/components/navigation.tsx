@@ -6,7 +6,7 @@ export function Navigation() {
     <nav className="sticky top-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-md">
       <div className="mx-auto flex max-w-[1200px] items-center justify-between px-6 py-4">
         <div className="flex items-center gap-4">
-          <Link href="/" className="text-xl font-semibold tracking-tight text-foreground">
+          <Link href="/" className="text-xl font-semibold tracking-tight">
             PayMate
           </Link>
           <Link

@@ -72,9 +72,7 @@ export default function PSPRegisterPage() {
     <div className="min-h-screen bg-background flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <Link href="/" className="text-2xl font-semibold tracking-tight text-foreground">
-            PayMate
-          </Link>
+          <Link href="/" className="text-2xl font-semibold tracking-tight"><span className="text-foreground">Pay</span><span className="text-blue-400">Mate</span></Link>
           <p className="text-sm text-muted-foreground mt-2">Apply for a USDC liquidity line</p>
         </div>
 
