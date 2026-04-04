@@ -1,9 +1,11 @@
 {
   "schedule": "0 0 */7 * *",
-  "poolAddress": "",
-  "yieldReserveAddress": "",
+  "poolAddress": "0x0000000000000000000000000000000000000001",
+  "yieldReserveAddress": "0x0000000000000000000000000000000000000002",
   "uniswapApiBaseUrl": "https://trade-api.gateway.uniswap.org/v1",
   "arcChainSelector": "arc-testnet",
-  "baseChainSelector": "base-sepolia",
-  "slippageBps": 50
+  "baseChainSelector": "ethereum-testnet-sepolia-base-1",
+  "slippageBps": 50,
+  "gasLimit": "500000",
+  "secretOwner": ""
 }

@@ -1,3 +1,9 @@
-name: paymate-pool-orchestrator
-description: CRE workflow for PayMate PSP Pre-Funding Pool
-entrypoint: main.ts
+# CRE Workflow Settings — PayMate Pool Orchestrator
+
+staging-settings:
+  user-workflow:
+    workflow-name: "paymate-pool-orchestrator-staging"
+  workflow-artifacts:
+    workflow-path: "./main.ts"
+    config-path: "./config.staging.json"
+    secrets-path: "../secrets.yaml"
