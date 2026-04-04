@@ -1,0 +1,27 @@
+{
+  "name": "paymate-agents",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "data-service": "tsx src/dataService.ts",
+    "credit-risk": "tsx src/creditRiskAgent.ts",
+    "pool-monitor": "tsx src/poolMonitorAgent.ts",
+    "repayment-reminder": "tsx src/repaymentReminderAgent.ts",
+    "test": "tsx src/test.ts"
+  },
+  "dependencies": {
+    "@circle-fin/x402-batching": "^2.0.4",
+    "@x402/core": "^2.9.0",
+    "@x402/evm": "^2.9.0",
+    "dotenv": "^16.4.0",
+    "express": "^4.21.0",
+    "viem": "^2.47.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0"
+  }
+}
