@@ -235,69 +235,167 @@ The agent API endpoints use the @x402/express middleware, which automatically ha
 
 The agent does not have access to pool funds. It operates with its own GatewayWallet balance. It cannot call any pool contract functions that move capital. It can only read pool state (view functions) and trigger notification flows.
 
-## 10. Frontend Specification
+## 10. Backend Application Layer
+
+The backend is a Node.js/Express application with MongoDB that acts as the gatekeeper between the frontend and the smart contracts. It handles all off-chain business logic: user onboarding, validation, orchestration of contract calls, and maintaining a synchronized database of on-chain and off-chain state.
 
 ### 10.1 Stack
 
+Node.js with Express. MongoDB with Mongoose for data persistence. ethers.js v6 for contract interactions. JSON Web Tokens (JWT) for authentication. bcrypt for password hashing.
+
+### 10.2 Data Models
+
+**User** — email, passwordHash, role (LP | PSP | ADMIN), walletAddress, createdAt, approved (boolean).
+
+**Pool** — poolContractAddress, drawdownLimit, pspRatePerDay, investorAPY, totalLiquidity, availableLiquidity, initialized (boolean), createdAt.
+
+**Deposit** — lpAddress, amount, txHash, timestamp, status (pending | confirmed).
+
+**Drawdown** — pspAddress, amount, txHash, timestamp, status (pending | approved | executed | shortfall), adminApprovalRequired (boolean), adminApprovedBy (address or null).
+
+**Repayment** — pspAddress, amount, token, txHash, timestamp, status (pending | confirmed | converted), convertedUsdcAmount, feePortion, principalPortion.
+
+**YieldDistribution** — cycle (number), totalDistributed, lpPayouts (array of {address, amount}), txHash, timestamp.
+
+**AuditLog** — actor, action, details, timestamp. Immutable append-only collection for compliance.
+
+### 10.3 API Routes
+
+#### Auth & Onboarding
+
+POST /api/auth/register — Register LP, PSP, or Admin. Validates email, hashes password, stores user. PSPs require subsequent approval.
+
+POST /api/auth/login — Authenticate user, return JWT.
+
+POST /api/auth/link-wallet — Associate a wallet address with the authenticated user's account.
+
+POST /api/psp/onboard — PSP submits onboarding details (business info, KYI score). Backend validates eligibility, stores profile, marks as pending approval.
+
+POST /api/admin/approve-psp — Admin approves a PSP for pool access. Updates user record. Emits audit log.
+
+#### LP Operations
+
+POST /api/lp/deposit — Validate deposit amount, trigger on-chain deposit() call, record in DB. Frontend sends the signed transaction; backend records and monitors confirmation.
+
+GET /api/lp/balance — Returns LP's current deposit, claimable yield, and transaction history. Reads from DB (synced with on-chain state).
+
+POST /api/lp/withdraw — Validate withdrawal (balance > 0, no overdraft), trigger on-chain withdraw() call, update DB.
+
+#### PSP Operations
+
+POST /api/psp/request-drawdown — Validate: amount <= drawdownLimit, pool has liquidity, PSP is approved, no active position, optional first-drawdown admin approval. If valid, trigger on-chain requestDrawdown(). If admin approval required, set status to pending and notify admin.
+
+GET /api/psp/position — Returns PSP's active drawdown position, repayment schedule, accrued fees, and history.
+
+POST /api/psp/repay — Validate repayment amount >= principal + accrued fee. Trigger on-chain repay() call. If non-USDC token, backend monitors RepaymentReceived event and tracks CRE conversion status.
+
+#### Admin Operations
+
+POST /api/admin/initialize-pool — Validate parameters, trigger on-chain initializePool(). Store pool config in DB.
+
+GET /api/admin/dashboard — Returns pool state (total/available liquidity, utilization rate), active PSP positions, yield reserve balance, recent audit logs.
+
+POST /api/admin/approve-drawdown — For first-drawdown approval flow. Admin approves pending drawdown, backend triggers on-chain execution.
+
+GET /api/admin/audit-log — Returns paginated audit log entries.
+
+#### Yield & Monitoring
+
+GET /api/yield/status — Returns current yield reserve balance, last distribution cycle, next scheduled distribution.
+
+POST /api/yield/trigger-distribution — Admin or CRE-triggered. Validates reserve balance, calculates LP shares, triggers on-chain distributeYield() via CRE.
+
+### 10.4 On-Chain Sync
+
+The backend runs a background listener (ethers.js WebSocket provider) that monitors Pool and YieldReserve contract events:
+
+- **Deposited** → update LP deposit record, pool liquidity in DB
+- **DrawdownExecuted** → update drawdown status to executed
+- **LiquidityShortfall** → update drawdown status to shortfall, log event
+- **RepaymentReceived** → update repayment status, track CRE conversion
+- **RepaymentProcessed** → update repayment with fee/principal split, update pool liquidity
+- **YieldDistributed** → record distribution cycle, update LP claimable balances
+- **Withdrawn** → update LP balance, pool liquidity
+
+This ensures the DB stays in sync with on-chain state. The frontend reads from the DB for fast responses, not directly from chain for every request.
+
+### 10.5 Validation & Security
+
+All drawdown requests are double-validated: once in the backend (business rules, approval status, KYI) and once in the smart contract (on-chain require statements). The backend is the first line of defense; the contract is the last.
+
+Prevent double withdrawals by checking DB status before triggering on-chain call.
+
+All state-changing API calls are logged to the AuditLog collection.
+
+JWT tokens expire after 24 hours. Wallet linking requires a signature verification (EIP-191) to prove ownership.
+
+### 10.6 Environment Variables
+
+MONGODB_URI, JWT_SECRET, ARC_RPC_URL, ARC_WS_URL, POOL_CONTRACT_ADDRESS, YIELD_RESERVE_ADDRESS, DEPLOYER_PRIVATE_KEY (for admin operations only), UNISWAP_API_KEY.
+
+## 11. Frontend Specification
+
+### 11.1 Stack
+
 Next.js 15 with App Router. wagmi v2 for contract interactions. viem for ABI encoding and chain definitions. RainbowKit v2 for wallet connection (MetaMask, Rainbow, Ledger). TanStack React Query for server state. Tailwind CSS for styling.
 
-### 10.2 Chain Configuration
+### 11.2 Chain Configuration
 
 Arc Testnet is defined as a custom chain with chain ID 5042002, RPC URL https://rpc.testnet.arc.network, block explorer https://testnet.arcscan.app, and native currency USDC with 6 decimals.
 
-### 10.3 LP Dashboard
+### 11.3 LP Dashboard
 
 Deposit panel: input amount, approve USDC, deposit to pool. Shows current deposit balance, fixed APY rate, accumulated claimable yield, and a withdraw button. Displays transaction history from on-chain events.
 
-### 10.4 PSP Dashboard
+### 11.4 PSP Dashboard
 
 Drawdown panel: input amount, request drawdown. Shows drawdown limit, active position (amount, timestamp, fee accruing), repayment button with token selector (USDC, EURC, USDT). Displays position history.
 
-### 10.5 Admin Panel
+### 11.5 Admin Panel
 
 Pool parameters display: total liquidity, available liquidity, utilization rate, drawdown limit, PSP rate, LP APY. Yield Reserve balance. List of active PSP positions. Optional: toggle to require manual drawdown approval for new PSPs.
 
-### 10.6 Decimal Handling
+### 11.6 Decimal Handling
 
 All UI amounts use 6 decimals (USDC standard). Use viem's formatUnits(value, 6) for display and parseUnits(input, 6) for contract calls. Never hardcode 18 decimals.
 
-## 11. Testing Strategy
+## 12. Testing Strategy
 
-### 11.1 Smart Contract Tests (Hardhat)
+### 12.1 Smart Contract Tests (Hardhat)
 
 Unit tests with Hardhat and Chai on a local Hardhat node (chain ID 5042002 to mirror Arc). Deploy mock USDC, EURC, USDT tokens with 6 decimals and faucet functions. Test all contract functions: deposit, drawdown, repayment (USDC direct and non-USDC requiring conversion), yield distribution, withdrawal, access control, edge cases (drawdown over limit, repayment on non-existent position, double withdrawal).
 
 Integration tests with Hardhat mainnet fork for Uniswap V3 swap verification — fork Ethereum mainnet, test real swap routing against live Uniswap contracts. This validates the swap logic even though production uses the Trading API.
 
-### 11.2 CRE Workflow Tests
+### 12.2 CRE Workflow Tests
 
 Use @chainlink/cre-sdk/test framework with EvmMock and newTestRuntime. Mock the Uniswap API responses. Test each trigger handler: cron yield distribution, log-based repayment processing, log-based liquidity shortfall handling.
 
 Simulate the full workflow with `cre workflow simulate` CLI command.
 
-### 11.3 Frontend Tests
+### 12.3 Frontend Tests
 
 Component tests with React Testing Library. Hook tests for wagmi contract interactions with mock providers.
 
-## 12. Deployment Plan
+## 13. Deployment Plan
 
-### 12.1 Local Development
+### 13.1 Local Development
 
 Run `npx hardhat node` for local EVM. Deploy mock tokens and contracts. Point frontend to localhost:8545. Develop and iterate rapidly.
 
-### 12.2 Arc Testnet Deployment
+### 13.2 Arc Testnet Deployment
 
 Fund deployer wallet from Circle faucet (https://faucet.circle.com). Deploy contracts via Hardhat to Arc Testnet RPC. Verify on testnet.arcscan.app. Point frontend to Arc Testnet.
 
-### 12.3 CRE Deployment
+### 13.3 CRE Deployment
 
 Simulate workflow locally with CRE CLI. If simulation succeeds, the Chainlink hackathon team can deploy it to the live CRE network during the hackathon (per prize description).
 
-### 12.4 Demo Preparation
+### 13.4 Demo Preparation
 
 Fund 3-4 demo wallets from faucet 48 hours before demo. Pre-deploy all contracts. Test full flow end-to-end on Arc Testnet. Have Hardhat local as hot backup (switch via env variable).
 
-## 13. Repository Structure
+## 14. Repository Structure
 
 ```
 PayMate-PSP/
@@ -318,6 +416,37 @@ PayMate-PSP/
       seed.ts
     hardhat.config.ts
     package.json
+  backend/
+    src/
+      server.ts
+      config/
+        db.ts
+        env.ts
+      models/
+        User.ts
+        Pool.ts
+        Deposit.ts
+        Drawdown.ts
+        Repayment.ts
+        YieldDistribution.ts
+        AuditLog.ts
+      routes/
+        auth.ts
+        lp.ts
+        psp.ts
+        admin.ts
+        yield.ts
+      middleware/
+        auth.ts
+        validate.ts
+      services/
+        contractService.ts
+        eventListener.ts
+        yieldScheduler.ts
+      utils/
+        wallet.ts
+    package.json
+    tsconfig.json
   cre-workflow/
     project.yaml
     secrets.yaml
@@ -353,7 +482,7 @@ PayMate-PSP/
   README.md
 ```
 
-## 14. Hackathon Prize Alignment
+## 15. Hackathon Prize Alignment
 
 **Arc — Best Smart Contracts with Advanced Stablecoin Logic ($3K).** The Pool and Yield Reserve contracts demonstrate conditional drawdown flows, multi-step settlement (receive non-USDC, convert, split principal/fee, route to reserve), and programmatic fixed-yield distribution — all using USDC and EURC on Arc.
 
@@ -361,7 +490,7 @@ PayMate-PSP/
 
 **Uniswap — Best API Integration ($10K pool).** The CRE workflow calls the Uniswap Trading API with a valid API key for swap quoting, route optimization, and transaction building. Real on-chain swap execution produces verifiable transaction IDs.
 
-## 15. Security Constraints (Non-Negotiable)
+## 16. Security Constraints (Non-Negotiable)
 
 No repayment is counted without on-chain token transfer confirmation. The contract checks its own balance, not just event data.
 
@@ -375,7 +504,7 @@ CRE orchestrates but does not control funds. All CRE writes go through the Keyst
 
 The optional agent cannot execute transactions on behalf of users, access pool funds, or bypass any contract access control. It can only read public state and send notifications.
 
-## 16. Default Parameters for Demo
+## 17. Default Parameters for Demo
 
 LP Fixed APY: 5% annually (500 basis points).
 PSP Daily Rate: 0.5% (50 basis points per day).
