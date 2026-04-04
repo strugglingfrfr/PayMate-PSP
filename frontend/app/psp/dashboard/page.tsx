@@ -4,6 +4,10 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { WalletButton } from "@/components/wallet-button";
+import { useAccount } from "wagmi";
+import { useApproveToken, useRequestDrawdown, useRepay as useRepayHook, usePoolState, usePSPPosition } from "@/lib/hooks/use-pool";
+import { USDC_ADDRESS, EURC_ADDRESS } from "@/lib/chain";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
 
@@ -66,6 +70,15 @@ export default function PSPDashboardPage() {
   const [repayToken, setRepayToken] = useState("USDC");
   const [repayAmount, setRepayAmount] = useState("");
 
+  // Wagmi hooks
+  const { address: walletAddress, isConnected } = useAccount();
+  const { requestDrawdown: onChainDrawdown, isPending: drawdownPending, isSuccess: drawdownSuccess, hash: drawdownHash } = useRequestDrawdown();
+  const repayTokenAddress = repayToken === "EURC" ? EURC_ADDRESS : USDC_ADDRESS;
+  const { approve: approveRepayToken, isPending: approvingRepay, isSuccess: repayApproved, hash: repayApproveHash } = useApproveToken(repayTokenAddress as `0x${string}`);
+  const { repay: onChainRepay, isPending: repayPending, isSuccess: repaySuccess, hash: repayHash } = useRepayHook();
+  const poolState = usePoolState();
+  const onChainPosition = usePSPPosition(walletAddress);
+
   const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
   const headers: Record<string, string> = { "Content-Type": "application/json", Authorization: `Bearer ${token || ""}` };
 
@@ -99,10 +112,27 @@ export default function PSPDashboardPage() {
     } catch { setError("Network error"); } finally { setLoading(false); }
   }
 
-  const active = position?.activeDrawdown;
+  // Use ON-CHAIN position data — this is the source of truth
+  const hasOnChainPosition = onChainPosition.amount && onChainPosition.amount > 0n && !onChainPosition.repaid;
+  const active = hasOnChainPosition ? {
+    amount: onChainPosition.amount!.toString(),
+    status: "executed",
+    executedAt: onChainPosition.timestamp ? new Date(Number(onChainPosition.timestamp) * 1000).toISOString() : null,
+    accruedFee: onChainPosition.amount && onChainPosition.timestamp ?
+      ((Number(onChainPosition.amount) * 50 * Math.max(1, Math.floor((Date.now() / 1000 - Number(onChainPosition.timestamp)) / 86400))) / 10000).toString() : "0",
+    riskScore: profile?.kyrScore?.totalScore || position?.activeDrawdown?.riskScore,
+    riskRating: profile?.kyrScore?.rating || position?.activeDrawdown?.riskRating,
+  } : position?.activeDrawdown;
+
   const kyrRating = profile?.kyrScore?.rating || "—";
   const kyrScore = profile?.kyrScore?.totalScore || 0;
-  const utilization = pool ? Math.round(((Number(pool.totalLiquidity) - Number(pool.availableLiquidity)) / Math.max(Number(pool.totalLiquidity), 1)) * 100) : 0;
+
+  // Use on-chain pool state for KPIs
+  const onChainDrawdownLimit = poolState.drawdownLimit ? Number(poolState.drawdownLimit) : 0;
+  const onChainAvailLiq = poolState.availableLiquidity ? Number(poolState.availableLiquidity) : 0;
+  const onChainTotalLiq = poolState.totalLiquidity ? Number(poolState.totalLiquidity) : 0;
+  const onChainRate = poolState.pspRatePerDay ? Number(poolState.pspRatePerDay) : 0;
+  const utilization = onChainTotalLiq > 0 ? Math.round(((onChainTotalLiq - onChainAvailLiq) / onChainTotalLiq) * 100) : 0;
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -117,7 +147,7 @@ export default function PSPDashboardPage() {
             {profile?.walletAddress ? (
               <span className="text-xs text-muted-foreground font-mono bg-secondary rounded-full px-3 py-1">{profile.walletAddress.slice(0, 6)}...{profile.walletAddress.slice(-4)}</span>
             ) : (
-              <Button size="sm" className="bg-blue-400 text-white hover:bg-blue-400/90 text-xs rounded-full">Connect Wallet</Button>
+              <WalletButton />
             )}
           </div>
         </div>
@@ -131,7 +161,7 @@ export default function PSPDashboardPage() {
               <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-400/20 text-xl">🔗</div>
               <div><div className="text-sm font-medium text-foreground">Connect your wallet to start</div><div className="text-xs text-muted-foreground">Link your wallet to request drawdowns and submit repayments on Arc</div></div>
             </div>
-            <Button size="sm" className="bg-blue-400 text-white hover:bg-blue-400/90 rounded-lg">Connect Wallet</Button>
+            <WalletButton />
           </div>
         )}
 
@@ -139,12 +169,12 @@ export default function PSPDashboardPage() {
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
           <div className="rounded-xl bg-gradient-to-br from-card via-card to-blue-400/5 border border-border/50 p-5">
             <div className="text-xs text-muted-foreground mb-1">Drawdown Limit</div>
-            <div className="text-2xl font-semibold text-foreground">{pool ? `$${(Number(pool.drawdownLimit) / 1e6).toFixed(0)}` : "—"}</div>
+            <div className="text-2xl font-semibold text-foreground">{onChainDrawdownLimit > 0 ? `$${(onChainDrawdownLimit / 1e6).toFixed(0)}` : "—"}</div>
             <div className="text-xs text-muted-foreground mt-1">USDC</div>
           </div>
           <div className="rounded-xl bg-gradient-to-br from-card via-card to-green-400/5 border border-border/50 p-5">
             <div className="text-xs text-muted-foreground mb-1">Pool Available</div>
-            <div className="text-2xl font-semibold text-green-400">{pool ? `$${(Number(pool.availableLiquidity) / 1e6).toFixed(0)}` : "—"}</div>
+            <div className="text-2xl font-semibold text-green-400">{onChainAvailLiq > 0 ? `$${(onChainAvailLiq / 1e6).toFixed(0)}` : "—"}</div>
             <div className="text-xs text-muted-foreground mt-1">USDC</div>
           </div>
           <div className="rounded-xl bg-gradient-to-br from-card via-card to-blue-400/5 border border-border/50 p-5">
@@ -154,7 +184,7 @@ export default function PSPDashboardPage() {
           </div>
           <div className="rounded-xl bg-gradient-to-br from-card via-card to-yellow-400/5 border border-border/50 p-5">
             <div className="text-xs text-muted-foreground mb-1">Daily Rate</div>
-            <div className="text-2xl font-semibold text-foreground">{pool ? `${Number(pool.pspRatePerDay) / 100}%` : "—"}</div>
+            <div className="text-2xl font-semibold text-foreground">{onChainRate > 0 ? `${onChainRate / 100}%` : "—"}</div>
             <div className="text-xs text-muted-foreground mt-1">per day</div>
           </div>
           <div className="rounded-xl border border-border/50 bg-card/50 p-5 flex items-center gap-4">
@@ -274,10 +304,19 @@ export default function PSPDashboardPage() {
                       className="bg-background/50 border-border text-xl font-mono h-14" />
                     {drawdownAmount && <div className="text-xs text-muted-foreground">≈ ${(Number(drawdownAmount) / 1e6).toFixed(2)} USDC</div>}
                   </div>
-                  <Button onClick={requestDrawdown} disabled={loading || !drawdownAmount}
+                  <Button onClick={() => {
+                      if (isConnected && drawdownAmount) onChainDrawdown(BigInt(drawdownAmount));
+                      else requestDrawdown();
+                    }} disabled={(isConnected ? drawdownPending : loading) || !drawdownAmount}
                     className="w-full bg-blue-400 text-white hover:bg-blue-400/90 rounded-lg h-12 text-base font-medium">
-                    {loading ? "Requesting..." : "Request Drawdown →"}
+                    {drawdownPending ? "Signing..." : drawdownSuccess ? "✓ Drawdown Submitted" : loading ? "Requesting..." : "Request Drawdown →"}
                   </Button>
+                  {drawdownHash && (
+                    <div className="text-xs text-muted-foreground mt-2">
+                      Tx: <a href={`https://testnet.arcscan.app/tx/${drawdownHash}`} target="_blank" rel="noreferrer" className="text-blue-400 hover:underline font-mono">{String(drawdownHash).slice(0, 16)}...</a>
+                    </div>
+                  )}
+                  {!isConnected && <div className="text-xs text-yellow-400 text-center mt-2">Connect wallet for on-chain drawdown</div>}
                 </div>
               </div>
 
@@ -343,11 +382,24 @@ export default function PSPDashboardPage() {
                     {repayAmount && <div className="text-xs text-muted-foreground">≈ ${(Number(repayAmount) / 1e6).toFixed(2)} {repayToken}</div>}
                   </div>
                   <div className="flex gap-3">
-                    <Button variant="outline" className="flex-1 border-border text-muted-foreground hover:text-foreground h-12">1. Approve {repayToken}</Button>
-                    <Button onClick={submitRepay} disabled={loading || !repayAmount} className="flex-1 bg-blue-400 text-white hover:bg-blue-400/90 h-12">
-                      {loading ? "Submitting..." : "2. Submit Repayment"}
+                    <Button variant="outline" onClick={() => repayAmount && approveRepayToken(BigInt(repayAmount))}
+                      disabled={approvingRepay || !repayAmount || !isConnected}
+                      className="flex-1 border-border text-muted-foreground hover:text-foreground h-12">
+                      {approvingRepay ? "Approving..." : repayApproved ? "✓ Approved" : `1. Approve ${repayToken}`}
+                    </Button>
+                    <Button onClick={() => repayAmount && onChainRepay(BigInt(repayAmount), repayTokenAddress as `0x${string}`)}
+                      disabled={repayPending || !repayAmount || !isConnected}
+                      className="flex-1 bg-blue-400 text-white hover:bg-blue-400/90 h-12">
+                      {repayPending ? "Signing..." : repaySuccess ? "✓ Repaid" : "2. Submit Repayment"}
                     </Button>
                   </div>
+                  {(repayApproveHash || repayHash) && (
+                    <div className="text-xs text-muted-foreground">
+                      {repayApproveHash && <div>Approve: <a href={`https://testnet.arcscan.app/tx/${repayApproveHash}`} target="_blank" rel="noreferrer" className="text-blue-400 hover:underline font-mono">{String(repayApproveHash).slice(0, 16)}...</a></div>}
+                      {repayHash && <div>Repay: <a href={`https://testnet.arcscan.app/tx/${repayHash}`} target="_blank" rel="noreferrer" className="text-green-400 hover:underline font-mono">{String(repayHash).slice(0, 16)}...</a></div>}
+                    </div>
+                  )}
+                  {!isConnected && <div className="text-xs text-yellow-400 text-center">Connect wallet for on-chain repayment</div>}
                 </div>
               </div>
               <div className="space-y-4">

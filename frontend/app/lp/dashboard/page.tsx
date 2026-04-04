@@ -4,6 +4,10 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { WalletButton } from "@/components/wallet-button";
+import { useAccount } from "wagmi";
+import { useApproveToken, useDeposit, useWithdraw, usePoolState, useLPBalance } from "@/lib/hooks/use-pool";
+import { USDC_ADDRESS } from "@/lib/chain";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
 type Tab = "deposit" | "withdraw" | "history" | "pool";
@@ -60,6 +64,14 @@ export default function LPDashboardPage() {
   const [success, setSuccess] = useState("");
   const [depositAmount, setDepositAmount] = useState("");
 
+  // Wagmi hooks for real on-chain transactions
+  const { address: walletAddress, isConnected } = useAccount();
+  const { approve: approveUsdc, isPending: approving, isSuccess: approved, hash: approveHash } = useApproveToken(USDC_ADDRESS);
+  const { deposit: onChainDeposit, isPending: depositing, isSuccess: deposited, hash: depositHash } = useDeposit();
+  const { withdraw: onChainWithdraw, isPending: withdrawing, isSuccess: withdrawn, hash: withdrawHash } = useWithdraw();
+  const poolState = usePoolState();
+  const lpBalance = useLPBalance(walletAddress);
+
   const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
   const user = typeof window !== "undefined" ? JSON.parse(localStorage.getItem("user") || "{}") : {};
   const headers: Record<string, string> = { "Content-Type": "application/json", Authorization: `Bearer ${token || ""}` };
@@ -94,8 +106,12 @@ export default function LPDashboardPage() {
     } catch { setError("Network error"); } finally { setLoading(false); }
   }
 
-  const apy = balance?.investorAPY ? balance.investorAPY / 100 : 5;
-  const totalDeposited = balance?.totalDeposited ? Number(balance.totalDeposited) / 1e6 : 0;
+  // Use ON-CHAIN data (wagmi) for KPIs, fallback to backend API
+  const apy = poolState.investorAPY ? Number(poolState.investorAPY) / 100 : (balance?.investorAPY ? balance.investorAPY / 100 : 5);
+  const totalDeposited = lpBalance.deposited ? Number(lpBalance.deposited) / 1e6 : (balance?.totalDeposited ? Number(balance.totalDeposited) / 1e6 : 0);
+  const claimableYield = lpBalance.claimable ? Number(lpBalance.claimable) / 1e6 : 0;
+  const onChainTotalLiq = poolState.totalLiquidity ? Number(poolState.totalLiquidity) / 1e6 : 0;
+  const onChainAvailLiq = poolState.availableLiquidity ? Number(poolState.availableLiquidity) / 1e6 : 0;
   const nextYield = yieldStatus?.nextCycleDate ? new Date(yieldStatus.nextCycleDate).toLocaleDateString() : "—";
   const lastCycle = yieldStatus?.lastCycle;
 
@@ -109,7 +125,7 @@ export default function LPDashboardPage() {
             <span className="rounded-full bg-green-400/10 border border-green-400/20 px-3 py-0.5 text-xs text-green-400 font-medium">Investor</span>
           </div>
           <div className="flex items-center gap-4">
-            <Button size="sm" className="bg-blue-400 text-white hover:bg-blue-400/90 text-xs rounded-full">Connect Wallet</Button>
+            <WalletButton />
           </div>
         </div>
       </div>
@@ -124,7 +140,7 @@ export default function LPDashboardPage() {
           </div>
           <div className="rounded-xl bg-gradient-to-br from-card via-card to-blue-400/5 border border-border/50 p-5">
             <div className="text-xs text-muted-foreground mb-1">Claimable Yield</div>
-            <div className="text-2xl font-semibold text-blue-400">$0.00</div>
+            <div className="text-2xl font-semibold text-blue-400">${claimableYield.toFixed(4)}</div>
             <div className="text-xs text-muted-foreground mt-1">USDC</div>
           </div>
           <div className="rounded-xl bg-gradient-to-br from-card via-card to-green-400/5 border border-border/50 p-5">
@@ -186,11 +202,24 @@ export default function LPDashboardPage() {
                   )}
                 </div>
                 <div className="flex gap-3">
-                  <Button variant="outline" className="flex-1 border-border text-muted-foreground hover:text-foreground h-12">1. Approve USDC</Button>
-                  <Button onClick={submitDeposit} disabled={loading || !depositAmount} className="flex-1 bg-green-400 text-black hover:bg-green-400/90 h-12 font-medium">
-                    {loading ? "Depositing..." : "2. Deposit"}
+                  <Button variant="outline" onClick={() => depositAmount && approveUsdc(BigInt(depositAmount))}
+                    disabled={approving || !depositAmount || !isConnected}
+                    className="flex-1 border-border text-muted-foreground hover:text-foreground h-12">
+                    {approving ? "Approving..." : approved ? "✓ Approved" : "1. Approve USDC"}
+                  </Button>
+                  <Button onClick={() => depositAmount && onChainDeposit(BigInt(depositAmount))}
+                    disabled={depositing || !depositAmount || !isConnected}
+                    className="flex-1 bg-green-400 text-black hover:bg-green-400/90 h-12 font-medium">
+                    {depositing ? "Signing..." : deposited ? "✓ Deposited" : "2. Deposit"}
                   </Button>
                 </div>
+                {(approveHash || depositHash) && (
+                  <div className="text-xs text-muted-foreground">
+                    {approveHash && <div>Approve tx: <a href={`https://testnet.arcscan.app/tx/${approveHash}`} target="_blank" rel="noreferrer" className="text-blue-400 hover:underline font-mono">{String(approveHash).slice(0, 16)}...</a></div>}
+                    {depositHash && <div>Deposit tx: <a href={`https://testnet.arcscan.app/tx/${depositHash}`} target="_blank" rel="noreferrer" className="text-green-400 hover:underline font-mono">{String(depositHash).slice(0, 16)}...</a></div>}
+                  </div>
+                )}
+                {!isConnected && <div className="text-xs text-yellow-400 text-center">Connect your wallet to deposit</div>}
               </div>
             </div>
             <div className="space-y-4">
@@ -227,13 +256,20 @@ export default function LPDashboardPage() {
               <div className="space-y-4">
                 <div className="rounded-lg bg-secondary/30 p-4 space-y-3">
                   <div className="flex justify-between text-sm"><span className="text-muted-foreground">Principal Deposited</span><span className="text-foreground font-mono">${totalDeposited.toFixed(2)}</span></div>
-                  <div className="flex justify-between text-sm"><span className="text-muted-foreground">Claimable Yield</span><span className="text-green-400 font-mono">$0.00</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-muted-foreground">Claimable Yield</span><span className="text-green-400 font-mono">${claimableYield.toFixed(4)}</span></div>
                   <div className="h-px bg-border/50" />
-                  <div className="flex justify-between text-sm font-medium"><span className="text-foreground">Total Withdrawable</span><span className="text-foreground font-mono">${totalDeposited.toFixed(2)}</span></div>
+                  <div className="flex justify-between text-sm font-medium"><span className="text-foreground">Total Withdrawable</span><span className="text-foreground font-mono">${(totalDeposited + claimableYield).toFixed(4)}</span></div>
                 </div>
-                <Button onClick={submitWithdraw} disabled={loading || totalDeposited === 0} className="w-full bg-green-400 text-black hover:bg-green-400/90 h-12 font-medium">
-                  {loading ? "Processing..." : totalDeposited > 0 ? "Withdraw All" : "No funds to withdraw"}
+                <Button onClick={() => onChainWithdraw()} disabled={withdrawing || !isConnected || totalDeposited === 0}
+                  className="w-full bg-green-400 text-black hover:bg-green-400/90 h-12 font-medium">
+                  {withdrawing ? "Signing..." : withdrawn ? "✓ Withdrawn" : totalDeposited > 0 ? "Withdraw All" : "No funds to withdraw"}
                 </Button>
+                {withdrawHash && (
+                  <div className="text-xs text-muted-foreground mt-2">
+                    Tx: <a href={`https://testnet.arcscan.app/tx/${withdrawHash}`} target="_blank" rel="noreferrer" className="text-green-400 hover:underline font-mono">{String(withdrawHash).slice(0, 16)}...</a>
+                  </div>
+                )}
+                {!isConnected && <div className="text-xs text-yellow-400 text-center mt-2">Connect your wallet to withdraw</div>}
               </div>
             </div>
             <div className="rounded-xl border border-green-400/20 bg-green-400/5 p-6">

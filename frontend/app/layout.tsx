@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { Inter, JetBrains_Mono } from 'next/font/google'
-import { Analytics } from '@vercel/analytics/next'
 import './globals.css'
+import { Web3Provider } from '@/lib/web3-provider'
 
 const inter = Inter({ 
   subsets: ["latin"],
@@ -44,8 +44,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <body className={`${inter.variable} ${jetbrainsMono.variable} font-sans antialiased`}>
-        {children}
-        {process.env.NODE_ENV === 'production' && <Analytics />}
+        <Web3Provider>{children}</Web3Provider>
       </body>
     </html>
   )
