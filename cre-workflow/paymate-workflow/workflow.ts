@@ -43,6 +43,7 @@ export const configSchema = z.object({
   gasLimit: z.string().optional(),
   secretOwner: z.string().optional(),
   uniswapApiKey: z.string().optional(),
+  useConfidentialHttp: z.boolean().optional(),
 });
 
 type Config = z.infer<typeof configSchema>;
@@ -104,27 +105,47 @@ function getUniswapQuote(
     routingPreference: "BEST_PRICE",
   });
 
-  // In production: use ConfidentialHTTPClient with vaultDonSecrets for privacy.
-  // In simulation: use regular HTTPClient since Vault DON secrets aren't available.
-  // Both call the same Uniswap API — Confidential HTTP hides the key in an enclave.
-  const httpClient = new cre.capabilities.HTTPClient();
+  // Confidential HTTP: API key + swap details stay private in secure enclave.
+  // Falls back to regular HTTP if confidential mode fails (e.g. simulation without Vault DON).
+  let response: any;
 
-  const fetchQuote = (requester: any, config: Config): any => {
-    const resp = requester.sendRequest({
-      method: "POST",
-      url: `${config.uniswapApiBaseUrl}/quote`,
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": config.uniswapApiKey || "",
-      },
-      body: new TextEncoder().encode(requestBody),
-    }).result();
-    return resp;
-  };
-
-  const response = httpClient
-    .sendRequest(runtime, fetchQuote, consensusIdenticalAggregation<any>())(runtime.config)
-    .result();
+  if (runtime.config.useConfidentialHttp) {
+    // PRODUCTION PATH: Confidential HTTP — secrets injected via Go templates in enclave
+    const confHttp = new ConfidentialHTTPClient();
+    response = confHttp
+      .sendRequest(runtime, {
+        request: {
+          url: `${runtime.config.uniswapApiBaseUrl}/quote`,
+          method: "POST",
+          multiHeaders: {
+            "Content-Type": { values: ["application/json"] },
+            "x-api-key": { values: ["{{.uniswapApiKey}}"] },
+          },
+          bodyString: requestBody,
+        },
+        vaultDonSecrets: [
+          { key: "uniswapApiKey", owner: runtime.config.secretOwner || "" },
+        ],
+      })
+      .result();
+  } else {
+    // SIMULATION PATH: Regular HTTP — API key passed directly from config
+    const httpClient = new cre.capabilities.HTTPClient();
+    const fetchQuote = (requester: any, config: Config): any => {
+      return requester.sendRequest({
+        method: "POST",
+        url: `${config.uniswapApiBaseUrl}/quote`,
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": config.uniswapApiKey || "",
+        },
+        body: new TextEncoder().encode(requestBody),
+      }).result();
+    };
+    response = httpClient
+      .sendRequest(runtime, fetchQuote, consensusIdenticalAggregation<any>())(runtime.config)
+      .result();
+  }
 
   const responseBody = Buffer.from(response.body ?? new Uint8Array(0)).toString("utf-8");
 

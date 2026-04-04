@@ -6,6 +6,7 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./interfaces/IPool.sol";
 import "./interfaces/IYieldReserve.sol";
+import "./interfaces/IAggregatorV3.sol";
 
 contract Pool is IPool, AccessControl {
     using SafeERC20 for IERC20;
@@ -34,6 +35,9 @@ contract Pool is IPool, AccessControl {
     mapping(address => uint256) public lpYieldClaimable;
     mapping(address => Position) public pspPositions;
     address[] public lpAddresses;
+
+    // Chainlink Price Feed for EURC/USD rate verification
+    IAggregatorV3 public priceFeed;
 
     // Pending drawdowns waiting for CRE to fill a shortfall
     struct PendingDrawdown {
@@ -228,5 +232,34 @@ contract Pool is IPool, AccessControl {
 
     function getLPAddresses() external view returns (address[] memory) {
         return lpAddresses;
+    }
+
+    // --- Chainlink Price Feed Integration ---
+
+    /// @notice Set the Chainlink Price Feed address (e.g. EURC/USD)
+    function setPriceFeed(address _priceFeed) external onlyRole(ADMIN_ROLE) {
+        priceFeed = IAggregatorV3(_priceFeed);
+    }
+
+    /// @notice Read the latest price from the Chainlink Price Feed
+    /// @return price The latest price (8 decimals for USD pairs)
+    /// @return updatedAt Timestamp of the last update
+    function getLatestPrice() external view returns (int256 price, uint256 updatedAt) {
+        require(address(priceFeed) != address(0), "Price feed not set");
+        (, price,, updatedAt,) = priceFeed.latestRoundData();
+    }
+
+    /// @notice Verify a conversion rate is within acceptable bounds using Chainlink
+    /// @param expectedRate The rate to verify (8 decimals)
+    /// @param toleranceBps Maximum deviation in basis points (e.g. 100 = 1%)
+    function verifyConversionRate(int256 expectedRate, uint256 toleranceBps) external view returns (bool) {
+        require(address(priceFeed) != address(0), "Price feed not set");
+        (, int256 chainlinkPrice,, uint256 updatedAt,) = priceFeed.latestRoundData();
+        require(block.timestamp - updatedAt < 3600, "Stale price feed");
+
+        int256 diff = expectedRate - chainlinkPrice;
+        if (diff < 0) diff = -diff;
+        int256 maxDiff = (chainlinkPrice * int256(toleranceBps)) / 10000;
+        return diff <= maxDiff;
     }
 }

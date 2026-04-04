@@ -8,5 +8,6 @@
   "slippageBps": 50,
   "gasLimit": "500000",
   "secretOwner": "",
-  "uniswapApiKey": "7Mb0dao1XHetper_D67ITp7ut32Ucyfu5ClhVD7jpLU"
+  "uniswapApiKey": "",
+  "useConfidentialHttp": false
 }
