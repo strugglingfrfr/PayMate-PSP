@@ -31,6 +31,7 @@ const config: HardhatUserConfig = {
         process.env.DEPLOYER_PRIVATE_KEY,
         process.env.LP_1_PRIVATE_KEY,
         process.env.PSP_1_PRIVATE_KEY,
+        process.env.PSP_2_PRIVATE_KEY,
       ].filter(Boolean) as string[],
     },
   },
