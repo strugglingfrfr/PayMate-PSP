@@ -94,14 +94,20 @@ function json(data: any, status = 200) {
 
 // Route handler
 async function handleRequest(req: NextRequest, { params }: { params: Promise<{ path: string[] }> }) {
-  await connectDB();
   const { path } = await params;
   const route = "/" + path.join("/");
+
+  // Health — no DB needed
+  if (route === "/health") return json({ status: "ok", timestamp: new Date().toISOString() });
+
+  try {
+    await connectDB();
+  } catch (e: any) {
+    return json({ error: "Database connection failed", detail: e.message }, 500);
+  }
+
   const body = req.method !== "GET" ? await req.json().catch(() => ({})) : {};
   const user = verifyToken(req);
-
-  // Health
-  if (route === "/health") return json({ status: "ok" });
 
   // AUTH
   if (route === "/auth/register" && req.method === "POST") {
