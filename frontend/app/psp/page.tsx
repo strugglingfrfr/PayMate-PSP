@@ -1,2 +1,2 @@
-// TODO: Implement in Phase 4
-// PSP Dashboard: drawdown, repay, position tracking
+import { redirect } from "next/navigation";
+export default function PSPPage() { redirect("/psp/dashboard"); }

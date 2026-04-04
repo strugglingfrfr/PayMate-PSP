@@ -1,2 +1,2 @@
-// TODO: Implement in Phase 4
-// Admin Panel: pool parameters, monitoring, approvals
+import { redirect } from "next/navigation";
+export default function AdminPage() { redirect("/admin/dashboard"); }

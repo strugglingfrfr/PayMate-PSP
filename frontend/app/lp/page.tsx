@@ -1,2 +1,2 @@
-// TODO: Implement in Phase 4
-// LP Dashboard: deposit, yield tracking, withdraw
+import { redirect } from "next/navigation";
+export default function LPPage() { redirect("/lp/dashboard"); }
