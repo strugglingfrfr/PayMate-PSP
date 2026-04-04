@@ -10,7 +10,7 @@ import { useApproveToken, useDeposit, useWithdraw, usePoolState, useLPBalance } 
 import { USDC_ADDRESS } from "@/lib/chain";
 import { UniswapRates } from "@/components/uniswap-rates";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "/api";
 type Tab = "deposit" | "withdraw" | "history" | "pool";
 
 function YieldRing({ apy, size = 90 }: { apy: number; size?: number }) {

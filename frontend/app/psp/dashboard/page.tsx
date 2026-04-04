@@ -10,7 +10,7 @@ import { useApproveToken, useRequestDrawdown, useRepay as useRepayHook, usePoolS
 import { USDC_ADDRESS, EURC_ADDRESS } from "@/lib/chain";
 import { UniswapRates, UniswapQuotePreview } from "@/components/uniswap-rates";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "/api";
 
 type Tab = "position" | "repay" | "history";
 
