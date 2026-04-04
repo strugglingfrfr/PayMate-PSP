@@ -26,7 +26,7 @@ function Footer() {
         <div className="flex items-center gap-6 text-xs text-muted-foreground/60">
           <span>Arc by Circle</span><span>•</span><span>Chainlink CRE</span><span>•</span><span>Uniswap Protocol</span><span>•</span><span>Circle Nanopayments</span>
         </div>
-        <div className="text-xs text-muted-foreground/40">PayMate Protocol • EthGlobal Pragma Cannes 2026</div>
+        <div className="text-xs text-muted-foreground/40">PayMate Protocol • EthGlobal Cannes 2026</div>
       </div>
     </div>
   );
