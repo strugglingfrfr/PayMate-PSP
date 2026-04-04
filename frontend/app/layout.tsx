@@ -14,7 +14,7 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'PayMate | Programmable Credit Infrastructure for Payment Settlement',
+  title: 'PayMate',
   description: 'Licensed PSPs access instant USDC credit lines. Institutional lenders earn fixed 5% APY. Liquidity gaps filled automatically from on-chain markets.',
   generator: 'v0.app',
   icons: {

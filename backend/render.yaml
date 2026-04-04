@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: paymate-api
+    runtime: node
+    buildCommand: npm install
+    startCommand: npx tsx src/server.ts
+    envVars:
+      - key: PORT
+        value: 4000
+      - key: MONGODB_URI
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: UNISWAP_API_KEY
+        sync: false
+      - key: POOL_CONTRACT_ADDRESS
+        value: "0xf9F800B7950F2e64A88c914B3e2764B1e8990955"
+      - key: YIELD_RESERVE_ADDRESS
+        value: "0xe7E0C0c9Ec9772FF4c36033B0a789437023B34e3"
+      - key: ARC_TESTNET_RPC
+        value: "https://rpc.testnet.arc.network"
