@@ -7,6 +7,8 @@ import pspRoutes from "./routes/psp";
 import adminRoutes from "./routes/admin";
 import lpRoutes from "./routes/lp";
 import yieldRoutes from "./routes/yield";
+import { startEventListener } from "./services/eventListener";
+import { startYieldScheduler } from "./services/yieldScheduler";
 
 const app = express();
 
@@ -42,6 +44,10 @@ async function start() {
   app.listen(env.PORT, () => {
     console.log(`PayMate backend running on port ${env.PORT}`);
   });
+
+  // Start background services
+  startEventListener();
+  startYieldScheduler();
 }
 
 start().catch(console.error);
