@@ -8,6 +8,7 @@ import { WalletButton } from "@/components/wallet-button";
 import { useAccount } from "wagmi";
 import { useApproveToken, useDeposit, useWithdraw, usePoolState, useLPBalance } from "@/lib/hooks/use-pool";
 import { USDC_ADDRESS } from "@/lib/chain";
+import { UniswapRates } from "@/components/uniswap-rates";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
 type Tab = "deposit" | "withdraw" | "history" | "pool";
@@ -235,6 +236,7 @@ export default function LPDashboardPage() {
                 <div className="text-xs text-green-400 font-medium mb-1">Fixed & Guaranteed</div>
                 <div className="text-xs text-muted-foreground">Your {apy}% APY is fixed regardless of pool utilization. Yield is paid from the Yield Reserve funded by PSP fees.</div>
               </div>
+              <UniswapRates />
               <div className="rounded-xl border border-border/50 bg-card/50 p-5">
                 <div className="text-xs text-muted-foreground mb-3">Powered By</div>
                 <div className="space-y-2">

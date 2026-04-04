@@ -8,6 +8,7 @@ import { WalletButton } from "@/components/wallet-button";
 import { useAccount } from "wagmi";
 import { useApproveToken, useRequestDrawdown, useRepay as useRepayHook, usePoolState, usePSPPosition } from "@/lib/hooks/use-pool";
 import { USDC_ADDRESS, EURC_ADDRESS } from "@/lib/chain";
+import { UniswapRates, UniswapQuotePreview } from "@/components/uniswap-rates";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
 
@@ -417,6 +418,10 @@ export default function PSPDashboardPage() {
                   <div className="text-xs text-green-400 font-medium mb-1">Fee → Yield Reserve</div>
                   <div className="text-xs text-muted-foreground">Your fee goes to the Yield Reserve, which pays investors their fixed 5% APY. You&apos;re funding the ecosystem.</div>
                 </div>
+                <UniswapRates />
+                {repayToken !== "USDC" && repayAmount && (
+                  <UniswapQuotePreview tokenIn={repayToken} amount={repayAmount} />
+                )}
               </div>
             </div>
           ) : (

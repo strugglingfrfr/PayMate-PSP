@@ -7,6 +7,7 @@ import pspRoutes from "./routes/psp";
 import adminRoutes from "./routes/admin";
 import lpRoutes from "./routes/lp";
 import yieldRoutes from "./routes/yield";
+import uniswapRoutes from "./routes/uniswap";
 import { startEventListener } from "./services/eventListener";
 import { startYieldScheduler } from "./services/yieldScheduler";
 
@@ -27,6 +28,7 @@ app.use("/api/psp", pspRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/lp", lpRoutes);
 app.use("/api/yield", yieldRoutes);
+app.use("/api/uniswap", uniswapRoutes);
 
 // 404 handler
 app.use((_req, res) => {
