@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import mongoose from "mongoose";
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 
 const MONGODB_URI = process.env.MONGODB_URI || "mongodb+srv://PayMate2026:7DLF7Ti0sx6vbZp1@paymate.896c74j.mongodb.net/paymate";
