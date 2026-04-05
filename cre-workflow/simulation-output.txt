@@ -1,0 +1,57 @@
+=== CRE Yield Distribution Simulation ===
+Date: Sun  5 Apr 2026 02:39:57 CEST
+
+✓ Workflow compiled
+✓ Simulation limits enabled
+  HTTP: req=10kb resp=100kb timeout=10s | ConfHTTP: req=10kb resp=100kb timeout=10s | Consensus obs=100kb | ChainWrite report=5kb gas=5000000 | WASM binary=100mb compressed=20mb
+  Binary hash: 3927ee059150962420268775953baced68ddd580b3999a60e1976671c8d25958
+  Config hash: e139ed96ca4f16c97afb7eb8642e2ff9e9289c0a3116cf982e7d389dc92180d5
+2026-04-05T02:40:03Z [SIMULATION] Simulator Initialized
+
+2026-04-05T02:40:03Z [SIMULATION] Running trigger trigger=cron-trigger@1.0.0
+2026-04-05T02:40:03Z [USER LOG] === Yield Distribution Cycle ===
+2026-04-05T02:40:03Z [USER LOG] Pool: totalLiquidity=20000000 APY=500bps
+2026-04-05T02:40:03Z [USER LOG] LPs: 1
+2026-04-05T02:40:03Z [USER LOG] LP 0x69c87eaf9C7B6Eed7e45aB3bb6eBcB5B4fff1ceD: deposited=20000000 yield=19444
+2026-04-05T02:40:03Z [USER LOG] Reserve: 50000, needed: 19444
+2026-04-05T02:40:03Z [USER LOG] YieldReserve approved. Tx: 0x0000000000000000000000000000000000000000000000000000000000000000
+2026-04-05T02:40:03Z [USER LOG] Yield distributed: 19444 to 1 LPs. Tx: 0x0000000000000000000000000000000000000000000000000000000000000000
+
+✓ Workflow Simulation Result:
+"distributed:19444:0x0000000000000000000000000000000000000000000000000000000000000000"
+
+2026-04-05T02:40:03Z [SIMULATION] Execution finished signal received
+2026-04-05T02:40:03Z [SIMULATION] Skipping WorkflowEngineV2
+
+╭──────────────────────────────────────────────────────╮
+│ Simulation complete! Ready to deploy your workflow?  │
+│                                                      │
+│ Run cre account access to request deployment access. │
+╰──────────────────────────────────────────────────────╯
+
+=== CRE Repayment Conversion Simulation ===
+✓ Workflow compiled
+✓ Simulation limits enabled
+  HTTP: req=10kb resp=100kb timeout=10s | ConfHTTP: req=10kb resp=100kb timeout=10s | Consensus obs=100kb | ChainWrite report=5kb gas=5000000 | WASM binary=100mb compressed=20mb
+  Binary hash: 3927ee059150962420268775953baced68ddd580b3999a60e1976671c8d25958
+  Config hash: e139ed96ca4f16c97afb7eb8642e2ff9e9289c0a3116cf982e7d389dc92180d5
+2026-04-05T02:40:08Z [SIMULATION] Simulator Initialized
+
+2026-04-05T02:40:08Z [SIMULATION] Running trigger trigger=evm:ChainSelector:3034092155422581607@1.0.0
+2026-04-05T02:40:08Z [USER LOG] === Repayment: PSP=0xe0Ae6f1D4B4Aa5aF5213241644B7315e86D43A9D Token=0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a Amount=5025000 ===
+2026-04-05T02:40:08Z [USER LOG] Converting 5025000 of 0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a to USDC
+2026-04-05T02:40:08Z [USER LOG] Uniswap quote failed: HTTP 401 — {"errorCode":"Unauthorized","detail":"Unauthenticated api key or session","requestId":"bUhYYhh4iYcEJQA="}
+2026-04-05T02:40:08Z [USER LOG] Conversion: 5025000 → 5025000 USDC
+2026-04-05T02:40:08Z [USER LOG] Repayment converted for 0xe0Ae6f1D4B4Aa5aF5213241644B7315e86D43A9D. Tx: 0x0000000000000000000000000000000000000000000000000000000000000000
+
+✓ Workflow Simulation Result:
+"converted:0xe0Ae6f1D4B4Aa5aF5213241644B7315e86D43A9D:0x0000000000000000000000000000000000000000000000000000000000000000"
+
+2026-04-05T02:40:08Z [SIMULATION] Execution finished signal received
+2026-04-05T02:40:08Z [SIMULATION] Skipping WorkflowEngineV2
+
+╭──────────────────────────────────────────────────────╮
+│ Simulation complete! Ready to deploy your workflow?  │
+│                                                      │
+│ Run cre account access to request deployment access. │
+╰──────────────────────────────────────────────────────╯
