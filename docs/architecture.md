@@ -65,17 +65,24 @@ flowchart LR
 ## Nanopayment Agent Flow (Arc)
 
 ```mermaid
-flowchart TD
-    PSP_REQ[PSP Requests Drawdown] --> BACKEND[Backend Validates]
-    BACKEND --> CRA[Credit Risk Agent]
-    CRA -->|pays 0.003 USDC| PMA[Pool Monitor Agent]
-    CRA -->|pays 0.01 USDC| CS[Credit Score API]
-    CRA -->|pays 0.005 USDC| CC[Compliance Check API]
-    PMA -->|pays 0.002 USDC| MD[Market Data API]
-    PMA -->|returns pool health| CRA
-    CRA -->|risk score and rating| BACKEND
-    BACKEND -->|approve or flag| RESULT[Drawdown Decision]
+graph TD
+    A[PSP Requests Drawdown] --> B[Backend Validates]
+    B --> C[Credit Risk Agent]
+    C --> D[Pool Monitor Agent]
+    C --> E[Credit Score API]
+    C --> F[Compliance Check API]
+    D --> G[Market Data API]
+    D --> C
+    C --> B
+    B --> H[Drawdown Decision]
 ```
+
+**Payment amounts (gas-free x402 on Arc):**
+- Credit Risk Agent → Pool Monitor: $0.003
+- Credit Risk Agent → Credit Score: $0.01
+- Credit Risk Agent → Compliance: $0.005
+- Pool Monitor → Market Data: $0.002
+- **Total per assessment: $0.018**
 
 ## Fund Flow
 
