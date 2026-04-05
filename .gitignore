@@ -38,3 +38,4 @@ artifacts/
 # Backend
 dist/
 .claude/
+.vercel

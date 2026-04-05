@@ -113,9 +113,9 @@ export default function PSPDashboardPage() {
     } catch { setError("Network error"); } finally { setLoading(false); }
   }
 
-  // Use ON-CHAIN position data — this is the source of truth
+  // Use ON-CHAIN position if available, fall back to backend, show whichever has data
   const hasOnChainPosition = onChainPosition.amount && onChainPosition.amount > 0n && !onChainPosition.repaid;
-  const active = hasOnChainPosition ? {
+  const onChainActive = hasOnChainPosition ? {
     amount: onChainPosition.amount!.toString(),
     status: "executed",
     executedAt: onChainPosition.timestamp ? new Date(Number(onChainPosition.timestamp) * 1000).toISOString() : null,
@@ -123,7 +123,8 @@ export default function PSPDashboardPage() {
       ((Number(onChainPosition.amount) * 50 * Math.max(1, Math.floor((Date.now() / 1000 - Number(onChainPosition.timestamp)) / 86400))) / 10000).toString() : "0",
     riskScore: profile?.kyrScore?.totalScore || position?.activeDrawdown?.riskScore,
     riskRating: profile?.kyrScore?.rating || position?.activeDrawdown?.riskRating,
-  } : position?.activeDrawdown;
+  } : null;
+  const active = onChainActive || position?.activeDrawdown || null;
 
   const kyrRating = profile?.kyrScore?.rating || "—";
   const kyrScore = profile?.kyrScore?.totalScore || 0;
