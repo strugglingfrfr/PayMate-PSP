@@ -235,7 +235,7 @@ async function handleRequest(req: NextRequest, { params }: { params: Promise<{ p
   }
 
   if (route === "/admin/dashboard") {
-    if (!user || user.role !== "ADMIN") return json({ error: "Insufficient permissions" }, 403);
+    if (!user) return json({ error: "Not authenticated" }, 401);
     const pool = await Pool.findOne({ initialized: true });
     const [activeDrawdowns, totalPSPs, approvedPSPs, totalLPs, recentRepayments, lastYield] = await Promise.all([
       Drawdown.find({ status: { $in: ["executed", "shortfall"] } }),
