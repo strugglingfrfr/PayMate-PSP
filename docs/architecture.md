@@ -39,8 +39,8 @@ graph TB
     end
 
     subgraph "Uniswap Trading API"
-        QUOTE[/quote endpoint<br/>Swap routing]
-        SWAP[/swap endpoint<br/>Tx building]
+        QUOTE["quote endpoint<br/>Swap routing"]
+        SWAP["swap endpoint<br/>Tx building"]
     end
 
     subgraph "AI Agents (Nanopayments)"
