@@ -68,19 +68,13 @@ flowchart LR
 flowchart TD
     PSP_REQ[PSP Requests Drawdown] --> BACKEND[Backend Validates]
     BACKEND --> CRA[Credit Risk Agent]
-    CRA --> |pays 0.003 USDC| PMA[Pool Monitor Agent]
-    CRA --> |pays 0.01 USDC| CS[Credit Score API]
-    CRA --> |pays 0.005 USDC| CC[Compliance Check API]
-    PMA --> |pays 0.002 USDC| MD[Market Data API]
-    PMA --> |returns pool health| CRA
-    CRA --> |risk score + rating| BACKEND
-    BACKEND --> |approve or flag| RESULT[Drawdown Decision]
-
-    style CRA fill:#1a1a2e,stroke:#f59e0b,color:#F8FAFC
-    style PMA fill:#1a1a2e,stroke:#f59e0b,color:#F8FAFC
-    style CS fill:#1a1a2e,stroke:#60A5FA,color:#F8FAFC
-    style CC fill:#1a1a2e,stroke:#60A5FA,color:#F8FAFC
-    style MD fill:#1a1a2e,stroke:#60A5FA,color:#F8FAFC
+    CRA -->|pays 0.003 USDC| PMA[Pool Monitor Agent]
+    CRA -->|pays 0.01 USDC| CS[Credit Score API]
+    CRA -->|pays 0.005 USDC| CC[Compliance Check API]
+    PMA -->|pays 0.002 USDC| MD[Market Data API]
+    PMA -->|returns pool health| CRA
+    CRA -->|risk score and rating| BACKEND
+    BACKEND -->|approve or flag| RESULT[Drawdown Decision]
 ```
 
 ## Fund Flow
@@ -88,16 +82,15 @@ flowchart TD
 ```mermaid
 flowchart LR
     LP_DEP[LP Deposits USDC] --> POOL[Pool Contract]
-    POOL --> |direct transfer| PSP_RECV[PSP Receives USDC]
-    POOL --> |if shortfall| CRE[CRE Workflow]
-    CRE --> |calls| UNI[Uniswap API]
-    UNI --> |sources USDC| CRE
-    CRE --> |completeDrawdown| POOL
-
+    POOL -->|direct transfer| PSP_RECV[PSP Receives USDC]
+    POOL -->|if shortfall| CRE[CRE Workflow]
+    CRE -->|calls| UNI[Uniswap API]
+    UNI -->|sources USDC| CRE
+    CRE -->|completeDrawdown| POOL
     PSP_REP[PSP Repays] --> POOL
-    POOL --> |principal| POOL
-    POOL --> |fee| YR[Yield Reserve]
-    YR --> |every 7 days via CRE| LP_YIELD[LP Receives Yield]
+    POOL -->|fee| YR[Yield Reserve]
+    POOL_PRINCIPAL[Principal returns to Pool]
+    YR -->|every 7 days via CRE| LP_YIELD[LP Receives Yield]
 ```
 
 ## Deployed Contracts
