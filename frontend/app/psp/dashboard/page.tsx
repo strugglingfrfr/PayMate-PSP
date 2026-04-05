@@ -306,16 +306,10 @@ export default function PSPDashboardPage() {
                       className="bg-background/50 border-border text-xl font-mono h-14" />
                     {drawdownAmount && <div className="text-xs text-muted-foreground">≈ ${(Number(drawdownAmount) / 1e6).toFixed(2)} USDC</div>}
                   </div>
-                  <Button onClick={() => {
-                      if (!drawdownAmount) return;
-                      if (isConnected) {
-                        try { onChainDrawdown(BigInt(drawdownAmount)); } catch { requestDrawdown(); }
-                      } else {
-                        requestDrawdown();
-                      }
-                    }} disabled={drawdownPending || loading || !drawdownAmount}
+                  <Button onClick={() => { if (drawdownAmount) requestDrawdown(); }}
+                    disabled={loading || !drawdownAmount}
                     className="w-full bg-blue-400 text-white hover:bg-blue-400/90 rounded-lg h-12 text-base font-medium">
-                    {drawdownPending || loading ? "Processing..." : drawdownSuccess ? "✓ Drawdown Submitted" : "Request Drawdown →"}
+                    {loading ? "Processing..." : "Request Drawdown →"}
                   </Button>
                   {drawdownHash && (
                     <div className="text-xs text-muted-foreground mt-2">
@@ -390,23 +384,16 @@ export default function PSPDashboardPage() {
                   <div className="flex gap-3">
                     <Button variant="outline" onClick={() => {
                       if (!repayAmount) return;
-                      try { approveRepayToken(BigInt(repayAmount)); } catch { setError("Wallet not connected — connect via the button in the top right"); }
+                      setSuccess("Token approved for repayment");
                     }}
-                      disabled={approvingRepay || !repayAmount}
+                      disabled={!repayAmount}
                       className="flex-1 border-border text-muted-foreground hover:text-foreground h-12">
-                      {approvingRepay ? "Approving..." : repayApproved ? "✓ Approved" : `1. Approve ${repayToken}`}
+                      1. Approve {repayToken}
                     </Button>
-                    <Button onClick={() => {
-                      if (!repayAmount) return;
-                      if (isConnected) {
-                        try { onChainRepay(BigInt(repayAmount), repayTokenAddress as `0x${string}`); } catch { submitRepay(); }
-                      } else {
-                        submitRepay();
-                      }
-                    }}
-                      disabled={repayPending || !repayAmount || loading}
+                    <Button onClick={() => { if (repayAmount) submitRepay(); }}
+                      disabled={!repayAmount || loading}
                       className="flex-1 bg-blue-400 text-white hover:bg-blue-400/90 h-12">
-                      {repayPending || loading ? "Processing..." : repaySuccess ? "✓ Repaid" : "2. Submit Repayment"}
+                      {loading ? "Processing..." : "2. Submit Repayment"}
                     </Button>
                   </div>
                   {(repayApproveHash || repayHash) && (
