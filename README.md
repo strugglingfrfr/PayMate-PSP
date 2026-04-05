@@ -30,6 +30,8 @@ View on ArcScan: https://testnet.arcscan.app/address/0xf9F800B7950F2e64A88c914B3
 
 ## Architecture
 
+> Full architecture diagram with Mermaid: [docs/architecture.md](docs/architecture.md)
+
 ```
 Frontend (Next.js + wagmi + RainbowKit)
     ↓ REST API
