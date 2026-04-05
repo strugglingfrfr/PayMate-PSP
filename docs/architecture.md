@@ -1,137 +1,110 @@
 # PayMate Architecture
 
+## System Overview
+
 ```mermaid
-graph TB
-    subgraph "Frontend (Next.js + wagmi)"
-        LP_UI[LP Dashboard<br/>Deposit / Withdraw / Yield]
-        PSP_UI[PSP Dashboard<br/>Drawdown / Repay / History]
-        ADMIN_UI[Admin Panel<br/>KYR Scoring / Pool Config]
-        WALLET[RainbowKit<br/>Wallet Connect]
-        UNI_RATES[Uniswap Rates<br/>Live EURC/USDC]
+flowchart TD
+    FE[Frontend - Next.js + wagmi + RainbowKit] --> API[Backend API - Next.js API Routes]
+    FE --> |wallet signing| ARC
+
+    API --> DB[(MongoDB Atlas)]
+    API --> UNI_API
+
+    subgraph ARC[Arc Testnet - Smart Contracts]
+        POOL[Pool.sol - Deposits, Drawdowns, Repayments]
+        YR[YieldReserve.sol - Fee Accumulation]
+        PF[Chainlink Price Feed - IAggregatorV3]
+        USDC[USDC - 0x3600...0000]
+        EURC[EURC - 0x89B5...9D72a]
+        POOL --> YR
+        POOL --> PF
     end
 
-    subgraph "Backend API (Next.js API Routes)"
-        AUTH[Auth<br/>JWT + bcrypt]
-        KYB[KYB Onboarding<br/>25+ fields]
-        KYR[KYR Scoring<br/>14 criteria matrix]
-        POOL_API[Pool Operations<br/>Drawdown / Repay / Deposit]
-        AUDIT[Audit Log<br/>Immutable trail]
-        UNI_API[Uniswap API<br/>Rate quotes]
+    subgraph CRE[Chainlink CRE - Decentralized Oracle Network]
+        CRON[Cron Trigger - 7 Day Yield Cycle]
+        SHORT[Log Trigger - Liquidity Shortfall]
+        REPAY[Log Trigger - Repayment Conversion]
     end
 
-    subgraph "MongoDB Atlas"
-        DB[(Users / KYB / KYR<br/>Deposits / Drawdowns<br/>Repayments / Yield<br/>Audit Logs)]
+    CRE --> |distributeYield, completeDrawdown, processConvertedRepayment| ARC
+    CRE --> |Confidential HTTP| UNI_API
+
+    subgraph UNI_API[Uniswap Trading API]
+        QUOTE[Quote Endpoint - Swap Routing]
     end
 
-    subgraph "Arc Testnet (Chain 5042002)"
-        POOL[Pool.sol<br/>Deposits, Drawdowns<br/>Repayments, Yield]
-        YR[YieldReserve.sol<br/>Fee accumulation<br/>Yield distribution]
-        PRICE[Chainlink Price Feed<br/>IAggregatorV3<br/>EURC/USD verification]
-        USDC_TOKEN[USDC<br/>0x3600...0000]
-        EURC_TOKEN[EURC<br/>0x89B5...9D72a]
+    subgraph AGENTS[AI Agents - Circle Nanopayments on Arc]
+        DS[Data Service - Credit Score 0.01, Compliance 0.005, Market 0.002]
+        CRA[Credit Risk Agent - Pays 0.018 per assessment]
+        PMA[Pool Monitor Agent - Buys and Sells 0.003]
+        GW[GatewayWallet - x402 Protocol, Gas Free]
     end
 
-    subgraph "Chainlink CRE (DON)"
-        CRON[Cron Trigger<br/>7-day yield cycle]
-        LOG1[Log Trigger<br/>LiquidityShortfall]
-        LOG2[Log Trigger<br/>RepaymentReceived]
-        CONF_HTTP[Confidential HTTP<br/>Private API calls]
-    end
+    CRA --> |pays| DS
+    CRA --> |pays| PMA
+    PMA --> |pays| DS
+    AGENTS --> |x402 payments| USDC
+```
 
-    subgraph "Uniswap Trading API"
-        QUOTE["quote endpoint<br/>Swap routing"]
-        SWAP["swap endpoint<br/>Tx building"]
-    end
+## Smart Contract Layer (Arc)
 
-    subgraph "AI Agents (Nanopayments)"
-        DATA_SVC[Data Service<br/>Credit $0.01<br/>Compliance $0.005<br/>Market $0.002]
-        CREDIT_AGENT[Credit Risk Agent<br/>Pays $0.018/assessment]
-        POOL_MONITOR[Pool Monitor Agent<br/>Buys + Sells $0.003]
-        GATEWAY[Circle GatewayWallet<br/>x402 Protocol<br/>Gas-free on Arc]
-    end
+```mermaid
+flowchart LR
+    LP[LP - Investor] --> |deposit USDC| POOL[Pool.sol]
+    PSP[PSP - Borrower] --> |requestDrawdown| POOL
+    PSP --> |repay USDC or EURC| POOL
+    POOL --> |fee| YR[YieldReserve.sol]
+    YR --> |yield| LP
+    POOL --> |verify rate| PF[Chainlink Price Feed]
+    CRE[Chainlink CRE] --> |distributeYield| POOL
+    CRE --> |completeDrawdown| POOL
+    CRE --> |processConvertedRepayment| POOL
+    CRE --> |onReport| YR
+```
 
-    %% Frontend connections
-    LP_UI --> WALLET
-    PSP_UI --> WALLET
-    WALLET -->|wagmi txs| POOL
-    LP_UI --> POOL_API
-    PSP_UI --> POOL_API
-    ADMIN_UI --> KYR
-    UNI_RATES --> UNI_API
+## Nanopayment Agent Flow (Arc)
 
-    %% Backend connections
-    AUTH --> DB
-    KYB --> DB
-    KYR --> DB
-    POOL_API --> DB
-    AUDIT --> DB
-    UNI_API --> QUOTE
+```mermaid
+flowchart TD
+    PSP_REQ[PSP Requests Drawdown] --> BACKEND[Backend Validates]
+    BACKEND --> CRA[Credit Risk Agent]
+    CRA --> |pays 0.003 USDC| PMA[Pool Monitor Agent]
+    CRA --> |pays 0.01 USDC| CS[Credit Score API]
+    CRA --> |pays 0.005 USDC| CC[Compliance Check API]
+    PMA --> |pays 0.002 USDC| MD[Market Data API]
+    PMA --> |returns pool health| CRA
+    CRA --> |risk score + rating| BACKEND
+    BACKEND --> |approve or flag| RESULT[Drawdown Decision]
 
-    %% Smart contract connections
-    POOL --> YR
-    POOL --> USDC_TOKEN
-    POOL --> EURC_TOKEN
-    POOL --> PRICE
-    YR --> USDC_TOKEN
-
-    %% CRE connections
-    CRON -->|distributeYield| POOL
-    CRON -->|onReport| YR
-    LOG1 -->|completeDrawdown| POOL
-    LOG2 -->|processConvertedRepayment| POOL
-    LOG1 --> CONF_HTTP
-    LOG2 --> CONF_HTTP
-    CONF_HTTP --> QUOTE
-    CONF_HTTP --> PRICE
-
-    %% Agent connections
-    CREDIT_AGENT -->|pays $0.01| DATA_SVC
-    CREDIT_AGENT -->|pays $0.003| POOL_MONITOR
-    POOL_MONITOR -->|pays $0.002| DATA_SVC
-    CREDIT_AGENT --> GATEWAY
-    POOL_MONITOR --> GATEWAY
-    GATEWAY -->|x402 on Arc| USDC_TOKEN
-
-    %% Styling
-    classDef arc fill:#1a1a2e,stroke:#60A5FA,color:#F8FAFC
-    classDef cre fill:#1a1a2e,stroke:#4ade80,color:#F8FAFC
-    classDef uni fill:#1a1a2e,stroke:#ff69b4,color:#F8FAFC
-    classDef agent fill:#1a1a2e,stroke:#f59e0b,color:#F8FAFC
-    classDef fe fill:#1a1a2e,stroke:#94A3B8,color:#F8FAFC
-
-    class POOL,YR,PRICE,USDC_TOKEN,EURC_TOKEN arc
-    class CRON,LOG1,LOG2,CONF_HTTP cre
-    class QUOTE,SWAP uni
-    class DATA_SVC,CREDIT_AGENT,POOL_MONITOR,GATEWAY agent
-    class LP_UI,PSP_UI,ADMIN_UI,WALLET,UNI_RATES fe
+    style CRA fill:#1a1a2e,stroke:#f59e0b,color:#F8FAFC
+    style PMA fill:#1a1a2e,stroke:#f59e0b,color:#F8FAFC
+    style CS fill:#1a1a2e,stroke:#60A5FA,color:#F8FAFC
+    style CC fill:#1a1a2e,stroke:#60A5FA,color:#F8FAFC
+    style MD fill:#1a1a2e,stroke:#60A5FA,color:#F8FAFC
 ```
 
 ## Fund Flow
 
+```mermaid
+flowchart LR
+    LP_DEP[LP Deposits USDC] --> POOL[Pool Contract]
+    POOL --> |direct transfer| PSP_RECV[PSP Receives USDC]
+    POOL --> |if shortfall| CRE[CRE Workflow]
+    CRE --> |calls| UNI[Uniswap API]
+    UNI --> |sources USDC| CRE
+    CRE --> |completeDrawdown| POOL
+
+    PSP_REP[PSP Repays] --> POOL
+    POOL --> |principal| POOL
+    POOL --> |fee| YR[Yield Reserve]
+    YR --> |every 7 days via CRE| LP_YIELD[LP Receives Yield]
 ```
-LP deposits USDC ──→ Pool Contract ──→ Available for drawdowns
-                                         │
-PSP requests drawdown ←──────────────────┘
-  │
-  ├─ If pool has enough ──→ Direct transfer to PSP
-  │
-  └─ If shortfall ──→ CRE calls Uniswap API ──→ Sources USDC ──→ completeDrawdown
-                          (Confidential HTTP)
 
-PSP repays (any stablecoin)
-  │
-  ├─ If USDC ──→ Split: principal → Pool, fee → YieldReserve
-  │
-  └─ If EURC/USDT ──→ CRE converts via Uniswap ──→ processConvertedRepayment
-                          (Confidential HTTP)
+## Deployed Contracts
 
-Every 7 days:
-  CRE reads LP balances ──→ Calculates yield ──→ YieldReserve.onReport()
-                                                  ──→ Pool.distributeYield()
-
-Before every drawdown:
-  Credit Risk Agent ──→ Pays Pool Monitor ($0.003)
-                    ──→ Pays Data Service ($0.01 + $0.005)
-                    ──→ Returns risk score to backend
-                    (All payments gas-free on Arc via x402)
-```
+| Contract | Address | Explorer |
+|---|---|---|
+| Pool | `0xf9F800B7950F2e64A88c914B3e2764B1e8990955` | [ArcScan](https://testnet.arcscan.app/address/0xf9F800B7950F2e64A88c914B3e2764B1e8990955) |
+| YieldReserve | `0xe7E0C0c9Ec9772FF4c36033B0a789437023B34e3` | [ArcScan](https://testnet.arcscan.app/address/0xe7E0C0c9Ec9772FF4c36033B0a789437023B34e3) |
+| USDC (Arc) | `0x3600000000000000000000000000000000000000` | Native |
+| EURC (Arc) | `0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a` | [ArcScan](https://testnet.arcscan.app/address/0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a) |
