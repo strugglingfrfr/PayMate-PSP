@@ -203,15 +203,25 @@ export default function LPDashboardPage() {
                   )}
                 </div>
                 <div className="flex gap-3">
-                  <Button variant="outline" onClick={() => depositAmount && approveUsdc(BigInt(depositAmount))}
+                  <Button variant="outline" onClick={() => {
+                    if (!depositAmount) return;
+                    try { approveUsdc(BigInt(depositAmount)); } catch { setError("Wallet not connected"); }
+                  }}
                     disabled={approving || !depositAmount}
                     className="flex-1 border-border text-muted-foreground hover:text-foreground h-12">
                     {approving ? "Approving..." : approved ? "✓ Approved" : "1. Approve USDC"}
                   </Button>
-                  <Button onClick={() => depositAmount && onChainDeposit(BigInt(depositAmount))}
-                    disabled={depositing || !depositAmount}
+                  <Button onClick={() => {
+                    if (!depositAmount) return;
+                    if (isConnected) {
+                      try { onChainDeposit(BigInt(depositAmount)); } catch { submitDeposit(); }
+                    } else {
+                      submitDeposit();
+                    }
+                  }}
+                    disabled={depositing || !depositAmount || loading}
                     className="flex-1 bg-green-400 text-black hover:bg-green-400/90 h-12 font-medium">
-                    {depositing ? "Signing..." : deposited ? "✓ Deposited" : "2. Deposit"}
+                    {depositing || loading ? "Processing..." : deposited ? "✓ Deposited" : "2. Deposit"}
                   </Button>
                 </div>
                 {(approveHash || depositHash) && (
@@ -262,9 +272,15 @@ export default function LPDashboardPage() {
                   <div className="h-px bg-border/50" />
                   <div className="flex justify-between text-sm font-medium"><span className="text-foreground">Total Withdrawable</span><span className="text-foreground font-mono">${(totalDeposited + claimableYield).toFixed(4)}</span></div>
                 </div>
-                <Button onClick={() => onChainWithdraw()} disabled={withdrawing || !isConnected || totalDeposited === 0}
+                <Button onClick={() => {
+                  if (isConnected) {
+                    try { onChainWithdraw(); } catch { submitWithdraw(); }
+                  } else {
+                    submitWithdraw();
+                  }
+                }} disabled={withdrawing || loading || totalDeposited === 0}
                   className="w-full bg-green-400 text-black hover:bg-green-400/90 h-12 font-medium">
-                  {withdrawing ? "Signing..." : withdrawn ? "✓ Withdrawn" : totalDeposited > 0 ? "Withdraw All" : "No funds to withdraw"}
+                  {withdrawing || loading ? "Processing..." : withdrawn ? "✓ Withdrawn" : totalDeposited > 0 ? "Withdraw All" : "No funds to withdraw"}
                 </Button>
                 {withdrawHash && (
                   <div className="text-xs text-muted-foreground mt-2">

@@ -307,11 +307,15 @@ export default function PSPDashboardPage() {
                     {drawdownAmount && <div className="text-xs text-muted-foreground">≈ ${(Number(drawdownAmount) / 1e6).toFixed(2)} USDC</div>}
                   </div>
                   <Button onClick={() => {
-                      if (isConnected && drawdownAmount) onChainDrawdown(BigInt(drawdownAmount));
-                      else requestDrawdown();
-                    }} disabled={(isConnected ? drawdownPending : loading) || !drawdownAmount}
+                      if (!drawdownAmount) return;
+                      if (isConnected) {
+                        try { onChainDrawdown(BigInt(drawdownAmount)); } catch { requestDrawdown(); }
+                      } else {
+                        requestDrawdown();
+                      }
+                    }} disabled={drawdownPending || loading || !drawdownAmount}
                     className="w-full bg-blue-400 text-white hover:bg-blue-400/90 rounded-lg h-12 text-base font-medium">
-                    {drawdownPending ? "Signing..." : drawdownSuccess ? "✓ Drawdown Submitted" : loading ? "Requesting..." : "Request Drawdown →"}
+                    {drawdownPending || loading ? "Processing..." : drawdownSuccess ? "✓ Drawdown Submitted" : "Request Drawdown →"}
                   </Button>
                   {drawdownHash && (
                     <div className="text-xs text-muted-foreground mt-2">
@@ -384,15 +388,25 @@ export default function PSPDashboardPage() {
                     {repayAmount && <div className="text-xs text-muted-foreground">≈ ${(Number(repayAmount) / 1e6).toFixed(2)} {repayToken}</div>}
                   </div>
                   <div className="flex gap-3">
-                    <Button variant="outline" onClick={() => repayAmount && approveRepayToken(BigInt(repayAmount))}
+                    <Button variant="outline" onClick={() => {
+                      if (!repayAmount) return;
+                      try { approveRepayToken(BigInt(repayAmount)); } catch { setError("Wallet not connected — connect via the button in the top right"); }
+                    }}
                       disabled={approvingRepay || !repayAmount}
                       className="flex-1 border-border text-muted-foreground hover:text-foreground h-12">
                       {approvingRepay ? "Approving..." : repayApproved ? "✓ Approved" : `1. Approve ${repayToken}`}
                     </Button>
-                    <Button onClick={() => repayAmount && onChainRepay(BigInt(repayAmount), repayTokenAddress as `0x${string}`)}
-                      disabled={repayPending || !repayAmount}
+                    <Button onClick={() => {
+                      if (!repayAmount) return;
+                      if (isConnected) {
+                        try { onChainRepay(BigInt(repayAmount), repayTokenAddress as `0x${string}`); } catch { submitRepay(); }
+                      } else {
+                        submitRepay();
+                      }
+                    }}
+                      disabled={repayPending || !repayAmount || loading}
                       className="flex-1 bg-blue-400 text-white hover:bg-blue-400/90 h-12">
-                      {repayPending ? "Signing..." : repaySuccess ? "✓ Repaid" : "2. Submit Repayment"}
+                      {repayPending || loading ? "Processing..." : repaySuccess ? "✓ Repaid" : "2. Submit Repayment"}
                     </Button>
                   </div>
                   {(repayApproveHash || repayHash) && (
