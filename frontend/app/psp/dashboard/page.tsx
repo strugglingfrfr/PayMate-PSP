@@ -385,12 +385,12 @@ export default function PSPDashboardPage() {
                   </div>
                   <div className="flex gap-3">
                     <Button variant="outline" onClick={() => repayAmount && approveRepayToken(BigInt(repayAmount))}
-                      disabled={approvingRepay || !repayAmount || !isConnected}
+                      disabled={approvingRepay || !repayAmount}
                       className="flex-1 border-border text-muted-foreground hover:text-foreground h-12">
                       {approvingRepay ? "Approving..." : repayApproved ? "✓ Approved" : `1. Approve ${repayToken}`}
                     </Button>
                     <Button onClick={() => repayAmount && onChainRepay(BigInt(repayAmount), repayTokenAddress as `0x${string}`)}
-                      disabled={repayPending || !repayAmount || !isConnected}
+                      disabled={repayPending || !repayAmount}
                       className="flex-1 bg-blue-400 text-white hover:bg-blue-400/90 h-12">
                       {repayPending ? "Signing..." : repaySuccess ? "✓ Repaid" : "2. Submit Repayment"}
                     </Button>
@@ -401,7 +401,7 @@ export default function PSPDashboardPage() {
                       {repayHash && <div>Repay: <a href={`https://testnet.arcscan.app/tx/${repayHash}`} target="_blank" rel="noreferrer" className="text-green-400 hover:underline font-mono">{String(repayHash).slice(0, 16)}...</a></div>}
                     </div>
                   )}
-                  {!isConnected && <div className="text-xs text-yellow-400 text-center">Connect wallet for on-chain repayment</div>}
+                  
                 </div>
               </div>
               <div className="space-y-4">

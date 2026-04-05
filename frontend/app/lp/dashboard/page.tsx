@@ -204,12 +204,12 @@ export default function LPDashboardPage() {
                 </div>
                 <div className="flex gap-3">
                   <Button variant="outline" onClick={() => depositAmount && approveUsdc(BigInt(depositAmount))}
-                    disabled={approving || !depositAmount || !isConnected}
+                    disabled={approving || !depositAmount}
                     className="flex-1 border-border text-muted-foreground hover:text-foreground h-12">
                     {approving ? "Approving..." : approved ? "✓ Approved" : "1. Approve USDC"}
                   </Button>
                   <Button onClick={() => depositAmount && onChainDeposit(BigInt(depositAmount))}
-                    disabled={depositing || !depositAmount || !isConnected}
+                    disabled={depositing || !depositAmount}
                     className="flex-1 bg-green-400 text-black hover:bg-green-400/90 h-12 font-medium">
                     {depositing ? "Signing..." : deposited ? "✓ Deposited" : "2. Deposit"}
                   </Button>
@@ -271,7 +271,7 @@ export default function LPDashboardPage() {
                     Tx: <a href={`https://testnet.arcscan.app/tx/${withdrawHash}`} target="_blank" rel="noreferrer" className="text-green-400 hover:underline font-mono">{String(withdrawHash).slice(0, 16)}...</a>
                   </div>
                 )}
-                {!isConnected && <div className="text-xs text-yellow-400 text-center mt-2">Connect your wallet to withdraw</div>}
+                
               </div>
             </div>
             <div className="rounded-xl border border-green-400/20 bg-green-400/5 p-6">
