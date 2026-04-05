@@ -4,6 +4,10 @@ Programmable credit liquidity for Payment Service Providers. Investors earn fixe
 
 **Built for EthGlobal Cannes 2026**
 
+**Live Demo:** https://paymate-psp.vercel.app
+
+**Contracts on Arc Testnet:** [View on ArcScan](https://testnet.arcscan.app/address/0xf9F800B7950F2e64A88c914B3e2764B1e8990955)
+
 ## What is PayMate?
 
 Payment Service Providers (PSPs) need to pre-fund settlement accounts across markets before processing merchant payouts. Capital sits idle, cross-border movement takes days, and FX spreads eat margins.
@@ -57,59 +61,23 @@ Smart Contracts (Arc)        ←→  CRE Workflow (Chainlink DON)
 
 ## Quick Start
 
-### Prerequisites
+### Option 1: Use the live deployment
 
-- Node.js 18+
-- MongoDB running locally
-- MetaMask browser extension
+Visit https://paymate-psp.vercel.app — everything works out of the box. Connect MetaMask on Arc Testnet to interact with contracts.
 
-### 1. Clone and install
+### Option 2: Run locally
+
+**Prerequisites:** Node.js 18+, MetaMask
 
 ```bash
 git clone https://github.com/strugglingfrfr/PayMate-PSP.git
-cd PayMate-PSP
-
-# Install all packages
-cd contracts && npm install && cd ..
-cd backend && npm install && cd ..
-cd frontend && npm install && cd ..
-cd agent && npm install && cd ..
-```
-
-### 2. Environment setup
-
-Copy `.env.example` to `.env` at the project root and fill in:
-
-```bash
-cp .env.example .env
-```
-
-The key variables:
-```
-DEPLOYER_PRIVATE_KEY=       # Admin wallet private key
-ARC_TESTNET_RPC=https://rpc.testnet.arc.network
-POOL_CONTRACT_ADDRESS=0xf9F800B7950F2e64A88c914B3e2764B1e8990955
-YIELD_RESERVE_ADDRESS=0xe7E0C0c9Ec9772FF4c36033B0a789437023B34e3
-MONGODB_URI=mongodb://localhost:27017/paymate
-JWT_SECRET=your-secret-here
-UNISWAP_API_KEY=your-uniswap-api-key
-```
-
-### 3. Start the backend
-
-```bash
-cd backend
+cd PayMate-PSP/frontend
+npm install
 npm run dev
-# Runs on http://localhost:4000
+# Runs on http://localhost:3000 (backend API included via Next.js API routes)
 ```
 
-### 4. Start the frontend
-
-```bash
-cd frontend
-npm run dev
-# Runs on http://localhost:3000
-```
+The frontend includes the full backend API at `/api/*` — no separate backend server needed. MongoDB Atlas is configured in the deployment.
 
 ### 5. Add Arc Testnet to MetaMask
 
